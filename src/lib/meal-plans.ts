@@ -26,6 +26,7 @@ export type PlanItemDTO = {
   description: string | null;
   timeOfDay: string | null;
   ingredients: AiIngredient[] | null;
+  recipe: string[] | null;
   portionG: number | null;
   caloriesKcal: number;
   proteinG: number;
@@ -64,6 +65,7 @@ type PlanRow = {
     description: string | null;
     timeOfDay: string | null;
     ingredients: unknown;
+    recipe: unknown;
     portionG: number | null;
     caloriesKcal: number;
     proteinG: number;
@@ -94,6 +96,7 @@ function toDTO(plan: PlanRow): PlanDTO {
         description: i.description,
         timeOfDay: i.timeOfDay,
         ingredients: (i.ingredients as AiIngredient[] | null) ?? null,
+        recipe: (i.recipe as string[] | null) ?? null,
         portionG: i.portionG,
         caloriesKcal: i.caloriesKcal,
         proteinG: i.proteinG,
@@ -138,6 +141,7 @@ export async function generateAndSave(userId: string, dateStr: string): Promise<
             description: m.description,
             timeOfDay: m.timeOfDay,
             ingredients: m.ingredients,
+            recipe: m.recipe,
             portionG: m.portionG,
             caloriesKcal: m.caloriesKcal,
             proteinG: m.proteinG,
@@ -171,6 +175,7 @@ export async function swapItem(userId: string, itemId: string): Promise<PlanItem
       description: i.description ?? "",
       timeOfDay: i.timeOfDay ?? "",
       ingredients: (i.ingredients as AiIngredient[] | null) ?? [],
+      recipe: (i.recipe as string[] | null) ?? [],
       portionG: i.portionG ?? 0,
       caloriesKcal: i.caloriesKcal,
       proteinG: i.proteinG,
@@ -187,6 +192,7 @@ export async function swapItem(userId: string, itemId: string): Promise<PlanItem
       description: replacement.description,
       timeOfDay: replacement.timeOfDay,
       ingredients: replacement.ingredients,
+      recipe: replacement.recipe,
       portionG: replacement.portionG,
       caloriesKcal: replacement.caloriesKcal,
       proteinG: replacement.proteinG,
@@ -202,6 +208,7 @@ export async function swapItem(userId: string, itemId: string): Promise<PlanItem
     description: updated.description,
     timeOfDay: updated.timeOfDay,
     ingredients: (updated.ingredients as AiIngredient[] | null) ?? null,
+    recipe: (updated.recipe as string[] | null) ?? null,
     portionG: updated.portionG,
     caloriesKcal: updated.caloriesKcal,
     proteinG: updated.proteinG,

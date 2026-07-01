@@ -117,6 +117,11 @@ model User {
   seasonStartDate    DateTime?     @db.Date              // začiatok sezóny
   gymDaysPerWeek     Int?                                // koľkokrát týždenne do gymu
   trainingExperience String?                             // "začiatočník" | "pokročilý"...
+  seasonGoals        String?                             // ciele do nasledujúcej sezóny
+  strengths          String?                             // silné stránky (futbal/kondícia)
+  weaknesses         String?                             // slabiny na zlepšenie
+  injuries           String?                             // zranenia / obmedzenia (bezpečnosť tréningu)
+  gymEquipment       String?                             // dostupné vybavenie (plná posilňovňa / činky doma...)
   workoutToken       String?       @unique               // tajný token pre webhook (Apple Watch skratka)
   stepGoal           Int?                                // denný cieľ krokov (default 9000)
 
@@ -322,6 +327,7 @@ model MealPlanItem {
   description  String?
   timeOfDay    String?                                 // "07:30" – kedy jesť (fyziológia)
   ingredients  Json?                                   // [{ name, grams }] – gramáž surovín
+  recipe       Json?                                   // [krok1, krok2, ...] – postup prípravy
   portionG     Float?
   caloriesKcal Float
   proteinG     Float

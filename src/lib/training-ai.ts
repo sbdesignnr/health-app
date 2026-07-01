@@ -116,6 +116,13 @@ async function gatherAthleteContext(userId: string): Promise<string> {
     `- Začiatok sezóny: ${user?.seasonStartDate ? user.seasonStartDate.toISOString().slice(0, 10) : "neuvedené"}`,
   );
   lines.push("");
+  lines.push("CIELE A FORMA (personalizuj presne podľa toho):");
+  lines.push(`- Ciele do sezóny: ${user?.seasonGoals?.trim() || "neuvedené"}`);
+  lines.push(`- Silné stránky: ${user?.strengths?.trim() || "neuvedené"}`);
+  lines.push(`- Slabiny na zlepšenie (cielene ich adresuj): ${user?.weaknesses?.trim() || "neuvedené"}`);
+  lines.push(`- Zranenia / obmedzenia (REŠPEKTUJ, neublíž, obchádzaj): ${user?.injuries?.trim() || "žiadne uvedené"}`);
+  lines.push(`- Dostupné vybavenie: ${user?.gymEquipment?.trim() || "neuvedené (predpokladaj bežnú posilňovňu)"}`);
+  lines.push("");
 
   // Rozvrh: pravidelné tréningy + najbližšie zápasy (na určenie fázy a rozloženie záťaže).
   const recurring = events.filter((e) => e.isRecurring);

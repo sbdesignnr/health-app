@@ -49,6 +49,11 @@ export async function GET() {
           gymDaysPerWeek: user.gymDaysPerWeek,
           trainingExperience: user.trainingExperience,
           stepGoal: user.stepGoal,
+          seasonGoals: user.seasonGoals,
+          strengths: user.strengths,
+          weaknesses: user.weaknesses,
+          injuries: user.injuries,
+          gymEquipment: user.gymEquipment,
         }
       : null,
     goalType: goal?.type ?? "MAINTAIN_PERFORMANCE",
@@ -87,6 +92,11 @@ export async function PUT(request: Request) {
     gymDaysPerWeek?: number | null;
     trainingExperience?: string | null;
     stepGoal?: number | null;
+    seasonGoals?: string | null;
+    strengths?: string | null;
+    weaknesses?: string | null;
+    injuries?: string | null;
+    gymEquipment?: string | null;
   } = {};
 
   const cleanTags = (arr: unknown[]): string[] =>
@@ -180,6 +190,11 @@ export async function PUT(request: Request) {
   if (b?.gymDaysPerWeek !== undefined) data.gymDaysPerWeek = intOrNull(b.gymDaysPerWeek, 0, 14);
   if (b?.seasonStartDate !== undefined) data.seasonStartDate = dateOrNull(b.seasonStartDate);
   if (b?.stepGoal !== undefined) data.stepGoal = intOrNull(b.stepGoal, 0, 100000);
+  if (b?.seasonGoals !== undefined) data.seasonGoals = strOrNull(b.seasonGoals, 600);
+  if (b?.strengths !== undefined) data.strengths = strOrNull(b.strengths, 400);
+  if (b?.weaknesses !== undefined) data.weaknesses = strOrNull(b.weaknesses, 400);
+  if (b?.injuries !== undefined) data.injuries = strOrNull(b.injuries, 400);
+  if (b?.gymEquipment !== undefined) data.gymEquipment = strOrNull(b.gymEquipment, 300);
 
   await updateProfile(userId, data);
 

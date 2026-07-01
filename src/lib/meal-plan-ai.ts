@@ -15,6 +15,7 @@ export type AiMealItem = {
   description: string;
   timeOfDay: string;
   ingredients: AiIngredient[];
+  recipe: string[];
   portionG: number;
   caloriesKcal: number;
   proteinG: number;
@@ -61,6 +62,11 @@ const ITEM_PROPS = {
     items: INGREDIENT_SCHEMA,
     description: "zoznam surovín s gramážou – aby bolo jasné koľko čoho dať",
   },
+  recipe: {
+    type: "array",
+    items: { type: "string" },
+    description: "postup prípravy krok po kroku (stručné, jasné kroky vrátane korenín/omáčky), aby jedlo bolo naozaj chutné",
+  },
   portionG: { type: "number", description: "celková hmotnosť porcie v gramoch (≈ súčet surovín)" },
   caloriesKcal: { type: "number", description: "kcal pre túto porciu" },
   proteinG: { type: "number" },
@@ -73,6 +79,7 @@ const ITEM_REQUIRED = [
   "description",
   "timeOfDay",
   "ingredients",
+  "recipe",
   "portionG",
   "caloriesKcal",
   "proteinG",
@@ -124,7 +131,7 @@ const SYSTEM = `Si špičkový športový nutričný špecialista a zároveň fy
 
 VÝSTUP:
 - 5 jedál, každé práve raz: raňajky (BREAKFAST), desiata (MORNING_SNACK), obed (LUNCH), olovrant (AFTERNOON_SNACK), večera (DINNER).
-- Ku KAŽDÉMU jedlu daj: presný čas (timeOfDay), rozpis surovín s gramážou (ingredients), celkovú porciu (portionG) a makrá pre porciu.
+- Ku KAŽDÉMU jedlu daj: presný čas (timeOfDay), rozpis surovín s gramážou (ingredients), postup prípravy krok po kroku (recipe – stručné jasné kroky vrátane korenín/omáčky, aby to bolo chutné), celkovú porciu (portionG) a makrá pre porciu.
 - Súčet kalórií a makier zo VŠETKÝCH jedál musí sedieť na cieľové hodnoty (odchýlka do ~5 %).
 - Navyše vráť dailyTip (jeden konkrétny dnešný odkaz) a supplementPlan (kedy a prečo si vziať doplnky).
 

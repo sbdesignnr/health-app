@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion, type Variants } from "motion/react";
-import { RefreshCw, Sparkles, Check, Plus, Clock, Pill, Lightbulb } from "lucide-react";
+import { RefreshCw, Sparkles, Check, Plus, Clock, Pill, Lightbulb, CookingPot, ChevronDown } from "lucide-react";
 import { MEALS } from "@/components/food-log/types";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 
@@ -15,6 +15,7 @@ type PlanItem = {
   description: string | null;
   timeOfDay: string | null;
   ingredients: Ingredient[] | null;
+  recipe: string[] | null;
   portionG: number | null;
   caloriesKcal: number;
   proteinG: number;
@@ -120,8 +121,17 @@ export function MealPlanScreen() {
   const [generating, setGenerating] = useState(false);
   const [busyItem, setBusyItem] = useState<string | null>(null);
   const [logged, setLogged] = useState<Set<string>>(new Set());
+  const [recipeOpen, setRecipeOpen] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
   const date = todayStr();
+
+  const toggleRecipe = (id: string) =>
+    setRecipeOpen((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
 
   useEffect(() => {
     (async () => {
@@ -412,6 +422,34 @@ export function MealPlanScreen() {
                 <MacroChip color="var(--color-fat)" value={item.fatG} letter="T" />
               </div>
             </div>
+
+            {item.recipe && item.recipe.length > 0 && (
+              <div className="mt-3">
+                <button
+                  onClick={() => toggleRecipe(item.id)}
+                  className="flex w-full items-center justify-between rounded-xl bg-surface-2 px-3 py-2 text-xs font-medium text-fg transition active:scale-[0.99]"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <CookingPot className="h-3.5 w-3.5 text-accent" strokeWidth={2} /> Postup prípravy
+                  </span>
+                  <ChevronDown
+                    className={`h-3.5 w-3.5 text-muted transition-transform ${recipeOpen.has(item.id) ? "rotate-180" : ""}`}
+                  />
+                </button>
+                {recipeOpen.has(item.id) && (
+                  <ol className="mt-2 space-y-1.5">
+                    {item.recipe.map((step, si) => (
+                      <li key={si} className="flex gap-2.5 text-xs leading-relaxed text-muted">
+                        <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-accent/15 text-[10px] font-bold tabular-nums text-accent">
+                          {si + 1}
+                        </span>
+                        <span>{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            )}
 
             <div className="mt-3 flex gap-2">
               <button

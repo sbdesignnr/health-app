@@ -228,6 +228,11 @@ export function ProfileScreen() {
   const [gymDaysPerWeek, setGymDaysPerWeek] = useState("");
   const [trainingExperience, setTrainingExperience] = useState("");
   const [stepGoal, setStepGoal] = useState("");
+  const [seasonGoals, setSeasonGoals] = useState("");
+  const [strengths, setStrengths] = useState("");
+  const [weaknesses, setWeaknesses] = useState("");
+  const [injuries, setInjuries] = useState("");
+  const [gymEquipment, setGymEquipment] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -261,6 +266,11 @@ export function ProfileScreen() {
           setGymDaysPerWeek(p.gymDaysPerWeek != null ? String(p.gymDaysPerWeek) : "");
           setTrainingExperience(p.trainingExperience ?? "");
           setStepGoal(p.stepGoal != null ? String(p.stepGoal) : "");
+          setSeasonGoals(p.seasonGoals ?? "");
+          setStrengths(p.strengths ?? "");
+          setWeaknesses(p.weaknesses ?? "");
+          setInjuries(p.injuries ?? "");
+          setGymEquipment(p.gymEquipment ?? "");
         }
         setGoal((data.goalType as GoalType) ?? "MAINTAIN_PERFORMANCE");
         setBreakdown(data.breakdown ?? null);
@@ -305,6 +315,11 @@ export function ProfileScreen() {
           gymDaysPerWeek: gymDaysPerWeek ? Number(gymDaysPerWeek) : null,
           trainingExperience: trainingExperience || null,
           stepGoal: stepGoal ? Number(stepGoal) : null,
+          seasonGoals: seasonGoals.trim() || null,
+          strengths: strengths.trim() || null,
+          weaknesses: weaknesses.trim() || null,
+          injuries: injuries.trim() || null,
+          gymEquipment: gymEquipment.trim() || null,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Uloženie zlyhalo.");
@@ -636,6 +651,62 @@ export function ProfileScreen() {
               </button>
             ))}
           </div>
+        </Field>
+      </motion.div>
+
+      <motion.div variants={fade} className="card space-y-4 p-5">
+        <div>
+          <h2 className="font-semibold text-white">Ciele a forma</h2>
+          <p className="text-xs text-muted">Čím viac napíšeš, tým premakanejšie AI tréningy (gym + futbal)</p>
+        </div>
+
+        <Field label="Ciele do nasledujúcej sezóny">
+          <textarea
+            value={seasonGoals}
+            onChange={(e) => setSeasonGoals(e.target.value)}
+            rows={2}
+            placeholder="napr. postup s tímom, stabilné miesto v zostave, +4 kg svalov, viac výbušnosti"
+            className={`${inp} resize-none`}
+          />
+        </Field>
+
+        <Field label="Silné stránky">
+          <textarea
+            value={strengths}
+            onChange={(e) => setStrengths(e.target.value)}
+            rows={2}
+            placeholder="napr. rýchlosť, hra hlavou, kondícia, čítanie hry"
+            className={`${inp} resize-none`}
+          />
+        </Field>
+
+        <Field label="Slabiny (na čom pracovať)">
+          <textarea
+            value={weaknesses}
+            onChange={(e) => setWeaknesses(e.target.value)}
+            rows={2}
+            placeholder="napr. slabšia ľavačka, silové súboje, výbušný prvý krok"
+            className={`${inp} resize-none`}
+          />
+        </Field>
+
+        <Field label="Zranenia / obmedzenia">
+          <textarea
+            value={injuries}
+            onChange={(e) => setInjuries(e.target.value)}
+            rows={2}
+            placeholder="napr. citlivé koleno, občas bolesti krížov — AI to obíde"
+            className={`${inp} resize-none`}
+          />
+        </Field>
+
+        <Field label="Dostupné vybavenie v gyme">
+          <input
+            value={gymEquipment}
+            onChange={(e) => setGymEquipment(e.target.value)}
+            placeholder="napr. plne vybavená posilňovňa / len činky doma"
+            className={inp}
+          />
         </Field>
       </motion.div>
 

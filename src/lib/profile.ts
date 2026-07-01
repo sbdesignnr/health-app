@@ -33,6 +33,11 @@ export async function updateProfile(
     gymDaysPerWeek?: number | null;
     trainingExperience?: string | null;
     stepGoal?: number | null;
+    seasonGoals?: string | null;
+    strengths?: string | null;
+    weaknesses?: string | null;
+    injuries?: string | null;
+    gymEquipment?: string | null;
   },
 ) {
   return prisma.user.update({
@@ -69,6 +74,11 @@ export async function updateProfile(
       trainingExperience:
         data.trainingExperience === undefined ? undefined : data.trainingExperience,
       stepGoal: data.stepGoal === undefined ? undefined : data.stepGoal,
+      seasonGoals: data.seasonGoals === undefined ? undefined : data.seasonGoals,
+      strengths: data.strengths === undefined ? undefined : data.strengths,
+      weaknesses: data.weaknesses === undefined ? undefined : data.weaknesses,
+      injuries: data.injuries === undefined ? undefined : data.injuries,
+      gymEquipment: data.gymEquipment === undefined ? undefined : data.gymEquipment,
     },
   });
 }
