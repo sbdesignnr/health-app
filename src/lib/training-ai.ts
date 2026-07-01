@@ -276,6 +276,22 @@ export async function generateFootballPlan(
   });
 
   if (res.stop_reason === "refusal") throw new Error("AI odmietlo požiadavku.");
-  const parsed = JSON.parse(firstText(res.content)) as AiFootballResult;
-  return { result: parsed, context, model: MODEL };
+  // Schéma vracia polia naplocho – zabalíme ich do plan.
+  const parsed = JSON.parse(firstText(res.content)) as {
+    phase: string;
+    summary: string;
+    teamTrainingFocus: string[];
+    individualSessions: AiFootballSession[];
+    recoveryTips: string[];
+  };
+  const result: AiFootballResult = {
+    phase: parsed.phase,
+    summary: parsed.summary,
+    plan: {
+      teamTrainingFocus: parsed.teamTrainingFocus ?? [],
+      individualSessions: parsed.individualSessions ?? [],
+      recoveryTips: parsed.recoveryTips ?? [],
+    },
+  };
+  return { result, context, model: MODEL };
 }
