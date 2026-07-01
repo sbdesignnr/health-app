@@ -13,6 +13,8 @@ function tagToType(tag?: string): NotifType {
       return "WEATHER_ALERT";
     case "premeal":
       return "MEAL_TIMING";
+    case "meal":
+      return "MEAL_TIMING";
     default:
       return "CUSTOM";
   }

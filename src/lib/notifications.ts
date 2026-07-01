@@ -1,9 +1,19 @@
 import { getHydration } from "./hydration";
 import { getWeather } from "./weather";
 import { getDayEvents } from "./schedule";
+import { prisma } from "./prisma";
+import { getPlan } from "./meal-plans";
 import type { PushPayload } from "./push";
 
 const WATER_HOURS = [8, 10, 12, 14, 16, 18, 20];
+
+const MEAL_LABEL_AKUZ: Record<string, string> = {
+  BREAKFAST: "raňajky",
+  MORNING_SNACK: "desiatu",
+  LUNCH: "obed",
+  AFTERNOON_SNACK: "olovrant",
+  DINNER: "večeru",
+};
 
 function trainingLabel(type: string): string {
   if (type === "FOOTBALL_TRAINING") return "futbal tréning";
@@ -64,6 +74,41 @@ export async function buildDueNotifications(
         url: "/dnes",
         tag: "premeal",
       });
+    }
+  }
+
+  // 4) Kofeín stop – ~8 h pred spánkom (polčas kofeínu ~5–6 h → chráni spánok a regeneráciu).
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { sleepTime: true } });
+  if (user?.sleepTime) {
+    const sleepH = parseInt(user.sleepTime.slice(0, 2), 10);
+    if (Number.isFinite(sleepH)) {
+      let cutoff = sleepH - 8;
+      if (cutoff < 0) cutoff += 24;
+      if (hour === cutoff) {
+        out.push({
+          title: "Posledná káva ☕️",
+          body: `Do spánku (${user.sleepTime}) ostáva ~8 h. Kofeín má polčas ~5–6 h – odteraz radšej stop, aby ti nenarušil spánok a regeneráciu. Daj si vodu alebo bylinkový čaj.`,
+          url: "/dnes",
+          tag: "caffeine",
+        });
+      }
+    }
+  }
+
+  // 5) Časy jedál z AI jedálnička – pripomeň jesť v naplánovanom čase.
+  const plan = await getPlan(userId, dateStr);
+  if (plan) {
+    for (const it of plan.items) {
+      if (!it.timeOfDay) continue;
+      const mealH = parseInt(it.timeOfDay.slice(0, 2), 10);
+      if (Number.isFinite(mealH) && mealH === hour) {
+        out.push({
+          title: `Čas na ${MEAL_LABEL_AKUZ[it.mealType] ?? "jedlo"} 🍽️`,
+          body: `${it.name} – ~${Math.round(it.caloriesKcal)} kcal (naplánované o ${it.timeOfDay}).`,
+          url: "/jedalnicek",
+          tag: "meal",
+        });
+      }
     }
   }
 
