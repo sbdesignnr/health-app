@@ -194,9 +194,10 @@ export function WorkoutSync() {
               Pridaj akciu, ktorá získa <span className="font-medium text-fg">aktívne kalórie</span> tréningu (Health / „Aktívna energia“).
             </li>
             <li>
-              Pridaj akciu — hore do vyhľadávania napíš <span className="font-medium text-fg">URL</span> a vyber{" "}
-              <span className="font-medium text-fg">„Získať obsah URL“</span> (kategória{" "}
-              <span className="font-medium text-fg">Web</span>). Pozor: NIE „Otvoriť URL adresy“.
+              Ťukni <span className="font-medium text-fg">Pridať akciu</span> → do vyhľadávania napíš{" "}
+              <span className="font-medium text-fg">obsah URL</span> (po anglicky{" "}
+              <span className="font-medium text-fg">Get Contents of URL</span>) a vyber túto akciu. Hľadaj podľa
+              názvu, kategórie nerieš. Pozor: NIE „Otvoriť URL adresy“.
             </li>
             <li>
               Do poľa URL vlož adresu nižšie, na koniec dopíš{" "}
