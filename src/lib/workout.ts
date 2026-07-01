@@ -81,8 +81,8 @@ export async function addWorkoutBurn(
   };
 }
 
-// Z Apple Watch prichádza DENNÁ aktívna energia (kumulatívna) → drž len JEDEN
-// záznam typu WATCH za deň a ber vyššiu hodnotu (nie sčítavať pri opakovaných sendoch).
+// Z Apple Watch prichádza DENNÁ aktívna energia → drž len JEDEN záznam typu WATCH
+// za deň a prepíš ho poslednou hodnotou (nie sčítavať pri opakovaných sendoch).
 export async function upsertWatchBurn(
   userId: string,
   data: { kcal: number; workoutType?: string | null; occurredAt?: string | null },
@@ -100,7 +100,7 @@ export async function upsertWatchBurn(
     ? await prisma.workoutBurn.update({
         where: { id: existing.id },
         data: {
-          kcal: Math.max(existing.kcal, value),
+          kcal: value,
           workoutType: data.workoutType?.trim() || existing.workoutType,
           occurredAt: valid,
         },
