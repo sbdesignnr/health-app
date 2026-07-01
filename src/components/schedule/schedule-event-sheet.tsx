@@ -16,7 +16,7 @@ import {
 } from "./labels";
 
 const inp =
-  "w-full rounded-2xl border border-border bg-surface-2 px-4 py-3 text-fg outline-none transition focus:border-accent";
+  "w-full rounded-2xl border border-border bg-surface-2 px-4 py-3.5 text-fg outline-none transition placeholder:text-muted/70 focus:border-accent";
 
 function todayStr(): string {
   const d = new Date();
@@ -46,8 +46,8 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-3 py-1.5 text-sm transition ${
-        active ? "bg-accent text-accent-fg" : "border border-border bg-surface-2 text-muted"
+      className={`rounded-full px-3.5 py-2 text-sm font-medium transition active:scale-95 ${
+        active ? "bg-accent text-accent-fg" : "bg-surface-2 text-muted ring-1 ring-inset ring-border"
       }`}
     >
       {children}
@@ -130,8 +130,8 @@ export function ScheduleEventSheet({
             <button
               type="button"
               onClick={() => setIsRecurring(true)}
-              className={`flex-1 rounded-2xl py-2.5 text-sm font-medium transition ${
-                isRecurring ? "bg-accent text-accent-fg" : "border border-border bg-surface-2 text-muted"
+              className={`flex-1 rounded-2xl py-2.5 text-sm font-medium transition active:scale-[0.98] ${
+                isRecurring ? "bg-accent text-accent-fg" : "bg-surface-2 text-muted ring-1 ring-inset ring-border"
               }`}
             >
               Týždenne
@@ -139,8 +139,8 @@ export function ScheduleEventSheet({
             <button
               type="button"
               onClick={() => setIsRecurring(false)}
-              className={`flex-1 rounded-2xl py-2.5 text-sm font-medium transition ${
-                !isRecurring ? "bg-accent text-accent-fg" : "border border-border bg-surface-2 text-muted"
+              className={`flex-1 rounded-2xl py-2.5 text-sm font-medium transition active:scale-[0.98] ${
+                !isRecurring ? "bg-accent text-accent-fg" : "bg-surface-2 text-muted ring-1 ring-inset ring-border"
               }`}
             >
               Jednorazovo
@@ -212,7 +212,7 @@ export function ScheduleEventSheet({
         <button
           onClick={() => submit(event ? "PATCH" : "POST")}
           disabled={busy}
-          className="w-full rounded-2xl bg-accent py-3 font-semibold text-accent-fg transition active:scale-[0.99] disabled:opacity-60"
+          className="w-full rounded-card bg-accent py-3.5 font-semibold text-accent-fg transition active:scale-[0.99] disabled:opacity-60"
         >
           {busy ? "Ukladám…" : "Uložiť"}
         </button>
@@ -221,7 +221,7 @@ export function ScheduleEventSheet({
           <button
             onClick={() => submit("DELETE")}
             disabled={busy}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-protein/40 bg-protein/10 py-3 text-sm font-semibold text-protein transition active:scale-[0.99] disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-card border border-error/40 bg-error/10 py-3 text-sm font-semibold text-error transition active:scale-[0.99] disabled:opacity-60"
           >
             <Trash2 className="h-4 w-4" />
             Zmazať udalosť

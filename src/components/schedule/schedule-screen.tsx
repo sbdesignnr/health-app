@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion, useReducedMotion, type Variants } from "motion/react";
 import { Plus } from "lucide-react";
 import {
   DAYS,
@@ -8,9 +9,27 @@ import {
   TYPE_LABEL,
   formatShortDate,
   isRestLike,
+  type EventType,
   type SEvent,
 } from "./labels";
 import { ScheduleEventSheet } from "./schedule-event-sheet";
+
+const container: Variants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.05 } },
+};
+const fade: Variants = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } },
+};
+
+const TYPE_COLOR: Record<EventType, string> = {
+  FOOTBALL_TRAINING: "var(--color-accent)",
+  GYM: "var(--color-fat)",
+  MATCH: "var(--color-protein)",
+  REST: "var(--color-muted)",
+  CUSTOM: "var(--color-carbs)",
+};
 
 function eventMeta(e: SEvent): string {
   const parts: string[] = [];
@@ -26,28 +45,28 @@ function EventRow({ e, onEdit }: { e: SEvent; onEdit: (e: SEvent) => void }) {
   return (
     <button
       onClick={() => onEdit(e)}
-      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition active:bg-surface-2"
+      className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition active:bg-surface-2"
     >
-      <div className="min-w-0">
-        <p className="truncate text-sm">{e.title || TYPE_LABEL[e.type]}</p>
+      <span className="h-8 w-1 shrink-0 rounded-full" style={{ backgroundColor: TYPE_COLOR[e.type] }} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-fg">{e.title || TYPE_LABEL[e.type]}</p>
         <p className="truncate text-xs text-muted">{eventMeta(e)}</p>
       </div>
       {e.estimatedKcal != null && (
-        <span className="shrink-0 text-xs tabular-nums text-accent">~{e.estimatedKcal} kcal</span>
+        <span className="shrink-0 rounded-full bg-accent/10 px-2.5 py-1 text-xs font-semibold tabular-nums text-accent ring-1 ring-inset ring-accent/20">
+          ~{e.estimatedKcal} kcal
+        </span>
       )}
     </button>
   );
 }
 
 function Card({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="divide-y divide-border overflow-hidden rounded-card border border-border bg-surface">
-      {children}
-    </div>
-  );
+  return <div className="card divide-y divide-border overflow-hidden">{children}</div>;
 }
 
 export function ScheduleScreen() {
+  const reduce = useReducedMotion();
   const [events, setEvents] = useState<SEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [sheet, setSheet] = useState<{ mode: "add" } | { mode: "edit"; event: SEvent } | null>(null);
@@ -63,7 +82,13 @@ export function ScheduleScreen() {
   }, []);
 
   if (loading) {
-    return <div className="h-40 animate-pulse rounded-card border border-border bg-surface" />;
+    return (
+      <div className="space-y-4">
+        <div className="skeleton h-14 rounded-card" />
+        <div className="skeleton h-24 rounded-card" />
+        <div className="skeleton h-24 rounded-card" />
+      </div>
+    );
   }
 
   const recurring = events.filter((e) => e.isRecurring);
@@ -73,44 +98,52 @@ export function ScheduleScreen() {
   const onEdit = (event: SEvent) => setSheet({ mode: "edit", event });
 
   return (
-    <div className="space-y-6">
-      <button
+    <motion.div
+      className="space-y-6"
+      variants={container}
+      initial={reduce ? false : "hidden"}
+      animate="show"
+    >
+      <motion.button
+        variants={fade}
         onClick={() => setSheet({ mode: "add" })}
-        className="flex w-full items-center justify-center gap-2 rounded-card bg-accent py-3.5 font-semibold text-accent-fg transition active:scale-[0.99]"
+        className="flex w-full items-center justify-center gap-2 rounded-card bg-accent py-3.5 font-semibold text-accent-fg shadow-[0_0_24px_rgba(168,255,62,0.16)] transition active:scale-[0.99]"
       >
         <Plus className="h-5 w-5" strokeWidth={2.4} />
         Pridať udalosť
-      </button>
+      </motion.button>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium text-muted">Opakuje sa týždenne</h2>
+      <motion.section variants={fade} className="space-y-3">
+        <h2 className="label-caps px-1">Opakuje sa týždenne</h2>
         {recurring.length === 0 ? (
-          <p className="rounded-card border border-border bg-surface p-4 text-sm text-muted">
+          <div className="card p-4 text-sm text-muted">
             Žiadne pravidelné tréningy. Pridaj futbal/posilňovňu, aby sa cieľ v tréningový deň
             automaticky zvýšil.
-          </p>
+          </div>
         ) : (
-          DAYS.filter((d) => recurring.some((e) => e.dayOfWeek === d.value)).map((d) => (
-            <div key={d.value}>
-              <p className="mb-1.5 px-1 text-xs font-medium text-muted">{d.label}</p>
-              <Card>
-                {recurring
-                  .filter((e) => e.dayOfWeek === d.value)
-                  .map((e) => (
-                    <EventRow key={e.id} e={e} onEdit={onEdit} />
-                  ))}
-              </Card>
-            </div>
-          ))
+          <div className="space-y-3">
+            {DAYS.filter((d) => recurring.some((e) => e.dayOfWeek === d.value)).map((d) => (
+              <div key={d.value}>
+                <p className="mb-1.5 px-1 text-xs font-semibold text-fg">{d.label}</p>
+                <Card>
+                  {recurring
+                    .filter((e) => e.dayOfWeek === d.value)
+                    .map((e) => (
+                      <EventRow key={e.id} e={e} onEdit={onEdit} />
+                    ))}
+                </Card>
+              </div>
+            ))}
+          </div>
         )}
-      </section>
+      </motion.section>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium text-muted">Jednorazové</h2>
+      <motion.section variants={fade} className="space-y-3">
+        <h2 className="label-caps px-1">Jednorazové</h2>
         {oneoff.length === 0 ? (
-          <p className="rounded-card border border-border bg-surface p-4 text-sm text-muted">
+          <div className="card p-4 text-sm text-muted">
             Žiadne jednorazové udalosti (zápas, voľno, dovolenka).
-          </p>
+          </div>
         ) : (
           <Card>
             {oneoff.map((e) => (
@@ -118,7 +151,7 @@ export function ScheduleScreen() {
             ))}
           </Card>
         )}
-      </section>
+      </motion.section>
 
       {sheet && (
         <ScheduleEventSheet
@@ -130,6 +163,6 @@ export function ScheduleScreen() {
           }}
         />
       )}
-    </div>
+    </motion.div>
   );
 }

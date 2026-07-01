@@ -1,15 +1,19 @@
 import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 import { ScheduleScreen } from "@/components/schedule/schedule-screen";
 
 export default function RozvrhPage() {
   return (
     <div className="space-y-5 pt-3">
-      <header className="space-y-1">
-        <Link href="/profil" className="text-sm text-muted">
-          ← Profil
+      <div>
+        <Link
+          href="/profil"
+          className="mb-2 inline-flex items-center gap-1 text-sm text-muted transition active:opacity-70"
+        >
+          <ChevronLeft className="h-4 w-4" strokeWidth={2} /> Profil
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight">Rozvrh tréningov</h1>
-      </header>
+        <h1 className="text-[28px] font-bold leading-none tracking-tight text-white">Rozvrh tréningov</h1>
+      </div>
       <ScheduleScreen />
     </div>
   );

@@ -21,7 +21,13 @@ type Item = {
 type Restaurant = { id: string; name: string; address: string | null; items: Item[] };
 
 const inp =
-  "w-full rounded-2xl border border-border bg-surface-2 px-4 py-3 text-fg outline-none transition focus:border-accent";
+  "w-full rounded-2xl border border-border bg-surface-2 px-4 py-3.5 text-fg outline-none transition placeholder:text-muted/70 focus:border-accent";
+
+function dayPill(active: boolean): string {
+  return `rounded-full px-3.5 py-2 text-sm font-medium transition active:scale-95 ${
+    active ? "bg-accent text-accent-fg" : "bg-surface-2 text-muted ring-1 ring-inset ring-border"
+  }`;
+}
 
 async function resizeImage(file: File): Promise<{ base64: string; mediaType: "image/jpeg" }> {
   const img = await createImageBitmap(file);
@@ -127,15 +133,9 @@ function MenuItemSheet({
     <Sheet open onClose={onClose} title={item ? "Upraviť položku" : "Pridať položku"}>
       <div className="space-y-3">
         <div>
-          <p className="mb-1.5 text-xs text-muted">Deň</p>
+          <p className="label-caps mb-2">Deň</p>
           <div className="flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              onClick={() => setDayOfWeek(null)}
-              className={`rounded-full px-3 py-1.5 text-sm transition ${
-                dayOfWeek === null ? "bg-accent text-accent-fg" : "border border-border bg-surface-2 text-muted"
-              }`}
-            >
+            <button type="button" onClick={() => setDayOfWeek(null)} className={dayPill(dayOfWeek === null)}>
               Celý týždeň
             </button>
             {DAYS.map((d) => (
@@ -143,9 +143,7 @@ function MenuItemSheet({
                 key={d.value}
                 type="button"
                 onClick={() => setDayOfWeek(d.value)}
-                className={`rounded-full px-3 py-1.5 text-sm transition ${
-                  dayOfWeek === d.value ? "bg-accent text-accent-fg" : "border border-border bg-surface-2 text-muted"
-                }`}
+                className={dayPill(dayOfWeek === d.value)}
               >
                 {d.short}
               </button>
@@ -169,14 +167,14 @@ function MenuItemSheet({
         />
 
         <div className="flex items-center justify-between pt-1">
-          <p className="text-xs text-muted">Makrá (porcia)</p>
+          <p className="label-caps">Makrá (porcia)</p>
           <button
             type="button"
             onClick={estimate}
             disabled={estimating}
-            className="flex items-center gap-1.5 rounded-full bg-carbs/15 px-3 py-1 text-xs font-medium text-carbs transition active:scale-95 disabled:opacity-60"
+            className="flex items-center gap-1.5 rounded-full bg-warn/15 px-3 py-1.5 text-xs font-medium text-warn ring-1 ring-inset ring-warn/25 transition active:scale-95 disabled:opacity-60"
           >
-            <Sparkles className="h-3.5 w-3.5" />
+            <Sparkles className="h-3.5 w-3.5" strokeWidth={2} />
             {estimating ? "Odhadujem…" : "AI odhad"}
           </button>
         </div>
@@ -186,14 +184,16 @@ function MenuItemSheet({
           <input value={c} onChange={(e) => setC(e.target.value)} inputMode="numeric" placeholder="S" className={inp + " px-2 text-center"} />
           <input value={f} onChange={(e) => setF(e.target.value)} inputMode="numeric" placeholder="T" className={inp + " px-2 text-center"} />
         </div>
-        {source === "AI_ESTIMATED" && <p className="text-xs text-carbs/90">Makrá označené ako AI odhad.</p>}
+        {source === "AI_ESTIMATED" && <p className="text-xs text-warn/90">Makrá označené ako AI odhad.</p>}
 
-        {error && <p className="text-sm text-protein">{error}</p>}
+        {error && (
+          <p className="rounded-xl bg-error/10 px-3 py-2 text-sm text-error ring-1 ring-inset ring-error/20">{error}</p>
+        )}
 
         <button
           onClick={() => submit(item ? "PATCH" : "POST")}
           disabled={busy || !name.trim()}
-          className="w-full rounded-2xl bg-accent py-3 font-semibold text-accent-fg transition active:scale-[0.99] disabled:opacity-60"
+          className="w-full rounded-card bg-accent py-3.5 font-semibold text-accent-fg transition active:scale-[0.99] disabled:opacity-60"
         >
           {busy ? "Ukladám…" : "Uložiť"}
         </button>
@@ -201,9 +201,9 @@ function MenuItemSheet({
           <button
             onClick={() => submit("DELETE")}
             disabled={busy}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-protein/40 bg-protein/10 py-3 text-sm font-semibold text-protein transition active:scale-[0.99] disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-card border border-error/40 bg-error/10 py-3 text-sm font-semibold text-error transition active:scale-[0.99] disabled:opacity-60"
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-4 w-4" strokeWidth={2} />
             Zmazať položku
           </button>
         )}
@@ -256,7 +256,13 @@ export function RestaurantDetail({ restaurantId }: { restaurantId: string }) {
   }
 
   if (loading) {
-    return <div className="h-40 animate-pulse rounded-card border border-border bg-surface" />;
+    return (
+      <div className="space-y-4">
+        <div className="skeleton h-16 rounded-card" />
+        <div className="skeleton h-12 rounded-card" />
+        <div className="skeleton h-28 rounded-card" />
+      </div>
+    );
   }
   if (!r) return <p className="text-sm text-muted">Reštaurácia sa nenašla.</p>;
 
@@ -267,49 +273,59 @@ export function RestaurantDetail({ restaurantId }: { restaurantId: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-card border border-border bg-surface p-4">
-        <p className="font-medium">{r.name}</p>
-        {r.address && <p className="text-xs text-muted">{r.address}</p>}
+      <div className="card p-4">
+        <p className="font-semibold text-white">{r.name}</p>
+        {r.address && <p className="mt-0.5 text-xs text-muted">{r.address}</p>}
       </div>
 
       <div className="flex gap-2">
         <button
           onClick={() => fileRef.current?.click()}
           disabled={photoBusy}
-          className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-border bg-surface-2 py-3 text-sm font-medium transition active:scale-[0.99] disabled:opacity-60"
+          className="flex flex-1 items-center justify-center gap-2 rounded-card border border-border bg-surface-2 py-3 text-sm font-medium transition active:scale-[0.99] disabled:opacity-60"
         >
-          <Camera className="h-4 w-4" />
+          <Camera className="h-4 w-4" strokeWidth={2} />
           {photoBusy ? "Prepisujem…" : "Odfotiť menu"}
         </button>
         <button
           onClick={() => setAdding(true)}
-          className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-accent py-3 text-sm font-semibold text-accent-fg transition active:scale-[0.99]"
+          className="flex flex-1 items-center justify-center gap-2 rounded-card bg-accent py-3 text-sm font-semibold text-accent-fg transition active:scale-[0.99]"
         >
-          <Plus className="h-4 w-4" />
+          <Plus className="h-4 w-4" strokeWidth={2.4} />
           Položka
         </button>
       </div>
       <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={onPhoto} className="hidden" />
-      {photoBusy && <p className="text-xs text-muted">AI prepisuje fotku menu a odhaduje makrá… (nahradí súčasné menu)</p>}
-      {error && <p className="text-sm text-protein">{error}</p>}
+      {photoBusy && (
+        <div className="card flex items-center gap-3 p-4">
+          <div className="relative">
+            <div className="absolute inset-0 rounded-full bg-accent/30 blur-md" />
+            <Sparkles className="relative h-5 w-5 animate-pulse text-accent" strokeWidth={1.75} />
+          </div>
+          <p className="text-sm text-muted">AI prepisuje fotku menu a odhaduje makrá… (nahradí súčasné menu)</p>
+        </div>
+      )}
+      {error && (
+        <p className="rounded-xl bg-error/10 px-3 py-2 text-sm text-error ring-1 ring-inset ring-error/20">{error}</p>
+      )}
 
       {groups.length === 0 ? (
-        <p className="rounded-card border border-border bg-surface p-4 text-sm text-muted">
+        <div className="card p-6 text-center text-sm text-muted">
           Žiadne položky menu. Odfoť cedulu alebo pridaj jedlo ručne.
-        </p>
+        </div>
       ) : (
         groups.map((g) => (
           <div key={g.label}>
-            <p className="mb-1.5 px-1 text-xs font-medium text-muted">{g.label}</p>
-            <div className="divide-y divide-border overflow-hidden rounded-card border border-border bg-surface">
+            <p className="label-caps mb-2 px-1">{g.label}</p>
+            <div className="card divide-y divide-border overflow-hidden">
               {g.items.map((it) => (
                 <button
                   key={it.id}
                   onClick={() => setEditItem(it)}
-                  className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition active:bg-surface-2"
+                  className="flex w-full items-start justify-between gap-3 px-4 py-3.5 text-left transition active:bg-surface-2"
                 >
                   <div className="min-w-0">
-                    <p className="truncate text-sm">{it.name}</p>
+                    <p className="truncate text-sm font-medium text-fg">{it.name}</p>
                     <p className="truncate text-xs text-muted">
                       {it.caloriesKcal != null
                         ? `${Math.round(it.caloriesKcal)} kcal · B${Math.round(it.proteinG ?? 0)}/S${Math.round(it.carbsG ?? 0)}/T${Math.round(it.fatG ?? 0)}`
@@ -318,7 +334,7 @@ export function RestaurantDetail({ restaurantId }: { restaurantId: string }) {
                     </p>
                   </div>
                   {it.macrosSource === "AI_ESTIMATED" && (
-                    <span className="shrink-0 rounded-full bg-carbs/15 px-2 py-0.5 text-[10px] font-medium text-carbs">
+                    <span className="shrink-0 rounded-full bg-warn/15 px-2 py-0.5 text-[10px] font-medium text-warn ring-1 ring-inset ring-warn/25">
                       AI odhad
                     </span>
                   )}
@@ -332,7 +348,7 @@ export function RestaurantDetail({ restaurantId }: { restaurantId: string }) {
       {!confirmDel ? (
         <button
           onClick={() => setConfirmDel(true)}
-          className="w-full rounded-2xl border border-border bg-surface-2 py-3 text-sm font-medium text-muted transition active:scale-[0.99]"
+          className="w-full rounded-card border border-border bg-surface-2 py-3 text-sm font-medium text-muted transition active:scale-[0.99]"
         >
           Zmazať reštauráciu
         </button>
@@ -340,7 +356,7 @@ export function RestaurantDetail({ restaurantId }: { restaurantId: string }) {
         <div className="flex gap-2">
           <button
             onClick={() => setConfirmDel(false)}
-            className="flex-1 rounded-2xl border border-border bg-surface-2 py-3 text-sm font-medium transition active:scale-[0.99]"
+            className="flex-1 rounded-card border border-border bg-surface-2 py-3 text-sm font-medium transition active:scale-[0.99]"
           >
             Zrušiť
           </button>
@@ -349,7 +365,7 @@ export function RestaurantDetail({ restaurantId }: { restaurantId: string }) {
               await fetch(`/api/restaurants/${restaurantId}`, { method: "DELETE" });
               router.push("/restauracie");
             }}
-            className="flex-1 rounded-2xl bg-protein py-3 text-sm font-semibold text-bg transition active:scale-[0.99]"
+            className="flex-1 rounded-card bg-error py-3 text-sm font-semibold text-white transition active:scale-[0.99]"
           >
             Naozaj zmazať
           </button>
