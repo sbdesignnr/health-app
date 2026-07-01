@@ -17,6 +17,7 @@ export type RestaurantDTO = {
   id: string;
   name: string;
   address: string | null;
+  menuUrl: string | null;
   items: MenuItemDTO[];
 };
 
@@ -47,7 +48,7 @@ export async function createRestaurant(userId: string, name: string, address: st
 export async function updateRestaurant(
   userId: string,
   id: string,
-  data: { name?: string; address?: string | null },
+  data: { name?: string; address?: string | null; menuUrl?: string | null },
 ) {
   const r = await prisma.restaurant.findFirst({ where: { id, userId } });
   if (!r) throw new Error("Reštaurácia neexistuje.");
@@ -56,6 +57,7 @@ export async function updateRestaurant(
     data: {
       name: data.name ?? undefined,
       address: data.address === undefined ? undefined : data.address,
+      menuUrl: data.menuUrl === undefined ? undefined : data.menuUrl,
     },
   });
 }
@@ -117,6 +119,7 @@ export async function getRestaurant(userId: string, id: string): Promise<Restaur
     id: r.id,
     name: r.name,
     address: r.address,
+    menuUrl: r.menuUrl,
     items: (r.menus[0]?.items ?? []).map(toMenuItemDTO),
   };
 }

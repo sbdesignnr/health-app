@@ -69,6 +69,32 @@ export async function parseMenuPhoto(
   return (JSON.parse(block.text) as { items: VisionMenuItem[] }).items;
 }
 
+const MENU_TEXT_SYSTEM = `Si nutričný špecialista. Z textu webovej stránky reštaurácie vytiahni jednotlivé jedlá (obedové/denné menu, prípadne stálu ponuku).
+Ignoruj navigáciu, kontakty, otváracie hodiny, cookies a ostatný balast. Ber len jedlá.
+Pre každé jedlo: ak je uvedený deň v týždni, urči dayOfWeek (1=Po … 6=So, 0=Ne; inak vynechaj), názov po slovensky, cenu v € ak je uvedená, a ODHADNI nutričné hodnoty (kcal a makrá) pre bežnú reštauračnú porciu.
+Ak v texte nie sú žiadne jedlá, vráť prázdny zoznam. Odpovedaj VÝHRADNE cez štruktúrovanú schému.`;
+
+// Vytiahne menu z textu naskrejpovanej webovej stránky reštaurácie.
+export async function parseMenuText(pageText: string): Promise<VisionMenuItem[]> {
+  const res = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 4096,
+    system: MENU_TEXT_SYSTEM,
+    output_config: { format: { type: "json_schema", schema: MENU_SCHEMA } },
+    messages: [
+      {
+        role: "user",
+        content: `Text zo stránky reštaurácie:\n\n${pageText}\n\nVytiahni menu ako štruktúrované položky s odhadom makier.`,
+      },
+    ],
+  });
+
+  if (res.stop_reason === "refusal") throw new Error("AI odmietlo požiadavku.");
+  const block = res.content.find((b) => b.type === "text");
+  if (!block || block.type !== "text") throw new Error("AI nevrátilo menu.");
+  return (JSON.parse(block.text) as { items: VisionMenuItem[] }).items;
+}
+
 const DISH_SCHEMA = {
   type: "object",
   properties: {

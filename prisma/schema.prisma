@@ -232,6 +232,7 @@ model Restaurant {
   name      String
   address   String?
   placeId   String?                                      // voliteľné Google Places
+  menuUrl   String?                                      // URL stránky s menu (auto-scan)
   createdAt DateTime         @default(now())
 
   user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)

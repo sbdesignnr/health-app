@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Plus, Sparkles, Trash2 } from "lucide-react";
+import { Camera, Plus, Sparkles, Trash2, Link2 } from "lucide-react";
 import { Sheet } from "@/components/ui/sheet";
 import { DAYS } from "@/components/schedule/labels";
 
@@ -18,7 +18,7 @@ type Item = {
   fatG: number | null;
   macrosSource: string;
 };
-type Restaurant = { id: string; name: string; address: string | null; items: Item[] };
+type Restaurant = { id: string; name: string; address: string | null; menuUrl: string | null; items: Item[] };
 
 const inp =
   "w-full rounded-2xl border border-border bg-surface-2 px-4 py-3.5 text-fg outline-none transition placeholder:text-muted/70 focus:border-accent";
@@ -221,6 +221,9 @@ export function RestaurantDetail({ restaurantId }: { restaurantId: string }) {
   const [photoBusy, setPhotoBusy] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [error, setError] = useState("");
+  const [urlSheet, setUrlSheet] = useState(false);
+  const [url, setUrl] = useState("");
+  const [urlBusy, setUrlBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function load() {
@@ -252,6 +255,27 @@ export function RestaurantDetail({ restaurantId }: { restaurantId: string }) {
     } finally {
       setPhotoBusy(false);
       if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  async function scanUrl() {
+    if (!url.trim()) return;
+    setUrlBusy(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/restaurants/${restaurantId}/scan-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: url.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Import zlyhal.");
+      setR(data.restaurant);
+      setUrlSheet(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Chyba.");
+    } finally {
+      setUrlBusy(false);
     }
   }
 
@@ -295,6 +319,19 @@ export function RestaurantDetail({ restaurantId }: { restaurantId: string }) {
           Položka
         </button>
       </div>
+
+      <button
+        onClick={() => {
+          setUrl(r.menuUrl ?? "");
+          setError("");
+          setUrlSheet(true);
+        }}
+        className="flex w-full items-center justify-center gap-2 rounded-card border border-border bg-surface-2 py-3 text-sm font-medium transition active:scale-[0.99]"
+      >
+        <Link2 className="h-4 w-4" strokeWidth={2} />
+        Import menu z URL
+      </button>
+
       <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={onPhoto} className="hidden" />
       {photoBusy && (
         <div className="card flex items-center gap-3 p-4">
@@ -370,6 +407,45 @@ export function RestaurantDetail({ restaurantId }: { restaurantId: string }) {
             Naozaj zmazať
           </button>
         </div>
+      )}
+
+      {urlSheet && (
+        <Sheet open onClose={() => setUrlSheet(false)} title="Import menu z URL">
+          <div className="space-y-3">
+            <p className="text-sm leading-relaxed text-muted">
+              Vlož odkaz na stránku s menu reštaurácie. AI z nej vytiahne jedlá a odhadne makrá.
+            </p>
+            <input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              inputMode="url"
+              autoFocus
+              placeholder="napr. restauracia.sk/denne-menu"
+              className={inp}
+            />
+            {error && (
+              <p className="rounded-xl bg-error/10 px-3 py-2 text-sm text-error ring-1 ring-inset ring-error/20">
+                {error}
+              </p>
+            )}
+            <button
+              onClick={scanUrl}
+              disabled={urlBusy || !url.trim()}
+              className="flex w-full items-center justify-center gap-2 rounded-card bg-accent py-3.5 font-semibold text-accent-fg transition active:scale-[0.99] disabled:opacity-60"
+            >
+              {urlBusy ? (
+                <>
+                  <Sparkles className="h-4 w-4 animate-pulse" strokeWidth={2} /> Načítavam menu…
+                </>
+              ) : (
+                "Načítať menu"
+              )}
+            </button>
+            <p className="text-xs text-muted">
+              Ak stránka blokuje čítanie alebo má menu ako obrázok/PDF, radšej menu odfoť.
+            </p>
+          </div>
+        </Sheet>
       )}
 
       {(adding || editItem) && (
