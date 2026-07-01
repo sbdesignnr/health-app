@@ -107,6 +107,17 @@ model User {
   sleepTime       String?                                // "23:00"
   stressLevel     Int?                                   // 1–5 (subjektívny stres)
   sleepQuality    Int?                                   // 1–5 (kvalita spánku)
+
+  // ── športový (athlétsky) profil ──
+  footballLeague     String?                             // liga, napr. "III. liga"
+  footballPosition   String?                             // post, napr. "stredný obranca"
+  yearsPlaying       Int?                                // koľko rokov hrá
+  matchMinutes       Int?                                // dĺžka zápasu (typicky 90)
+  dominantFoot       String?                             // "left" | "right" | "both"
+  seasonStartDate    DateTime?     @db.Date              // začiatok sezóny
+  gymDaysPerWeek     Int?                                // koľkokrát týždenne do gymu
+  trainingExperience String?                             // "začiatočník" | "pokročilý"...
+
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @default(now()) @updatedAt
 
@@ -120,6 +131,8 @@ model User {
   aiInsights        AiInsight[]
   notifications     Notification[]
   pushSubscriptions PushSubscription[]
+  trainingPrograms  TrainingProgram[]
+  exerciseLogs      ExerciseLog[]
 }
 
 // ── GOALS (história) ─────────────────────────────────────
@@ -365,4 +378,71 @@ model PushSubscription {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// ── TRÉNINGOVÉ PROGRAMY (AI na mieru) ────────────────────
+enum TrainingKind {
+  GYM
+  FOOTBALL
+}
+
+model TrainingProgram {
+  id        String       @id @default(uuid()) @db.Uuid
+  userId    String       @db.Uuid
+  kind      TrainingKind
+  model     String
+  phase     String                                       // AI-určená fáza, napr. "Predsezóna – sila"
+  summary   String?                                      // stručný prehľad zamerania
+  context   Json?                                        // vstup do AI (traceability)
+  active    Boolean      @default(true)
+  createdAt DateTime     @default(now())
+
+  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  days ProgramDay[]
+
+  @@index([userId, kind, active])
+}
+
+model ProgramDay {
+  id        String  @id @default(uuid()) @db.Uuid
+  programId String  @db.Uuid
+  dayIndex  Int
+  title     String                                       // "Deň 1 – Dolná časť"
+  focus     String?                                      // krátke zameranie
+  sortOrder Int     @default(0)
+
+  program   TrainingProgram   @relation(fields: [programId], references: [id], onDelete: Cascade)
+  exercises ProgramExercise[]
+
+  @@index([programId])
+}
+
+model ProgramExercise {
+  id        String  @id @default(uuid()) @db.Uuid
+  dayId     String  @db.Uuid
+  name      String
+  sets      Int
+  reps      String                                       // "8–10", "5", "AMRAP"
+  intensity String?                                      // "RPE 8", "75% 1RM"
+  restSec   Int?
+  notes     String?
+  sortOrder Int     @default(0)
+
+  day ProgramDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+
+  @@index([dayId])
+}
+
+model ExerciseLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @db.Uuid
+  exerciseName String
+  weightKg     Float
+  reps         Int?
+  note         String?
+  loggedAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, exerciseName])
 }

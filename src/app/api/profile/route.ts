@@ -38,6 +38,16 @@ export async function GET() {
           sleepTime: user.sleepTime,
           stressLevel: user.stressLevel,
           sleepQuality: user.sleepQuality,
+          footballLeague: user.footballLeague,
+          footballPosition: user.footballPosition,
+          yearsPlaying: user.yearsPlaying,
+          matchMinutes: user.matchMinutes,
+          dominantFoot: user.dominantFoot,
+          seasonStartDate: user.seasonStartDate
+            ? user.seasonStartDate.toISOString().slice(0, 10)
+            : null,
+          gymDaysPerWeek: user.gymDaysPerWeek,
+          trainingExperience: user.trainingExperience,
         }
       : null,
     goalType: goal?.type ?? "MAINTAIN_PERFORMANCE",
@@ -67,6 +77,14 @@ export async function PUT(request: Request) {
     sleepTime?: string | null;
     stressLevel?: number | null;
     sleepQuality?: number | null;
+    footballLeague?: string | null;
+    footballPosition?: string | null;
+    yearsPlaying?: number | null;
+    matchMinutes?: number | null;
+    dominantFoot?: string | null;
+    seasonStartDate?: string | null;
+    gymDaysPerWeek?: number | null;
+    trainingExperience?: string | null;
   } = {};
 
   const cleanTags = (arr: unknown[]): string[] =>
@@ -76,6 +94,17 @@ export async function PUT(request: Request) {
   const level1to5 = (v: unknown): number | null => {
     const n = Number(v);
     return Number.isFinite(n) && n >= 1 && n <= 5 ? Math.round(n) : null;
+  };
+  const strOrNull = (v: unknown, max: number): string | null =>
+    typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null;
+  const intOrNull = (v: unknown, lo: number, hi: number): number | null => {
+    const n = Number(v);
+    return Number.isFinite(n) && n >= lo && n <= hi ? Math.round(n) : null;
+  };
+  const dateOrNull = (v: unknown): string | null => {
+    if (typeof v !== "string" || !v.trim()) return null;
+    const d = new Date(v);
+    return Number.isNaN(d.getTime()) ? null : v.trim();
   };
 
   if (b?.name !== undefined) {
@@ -138,6 +167,16 @@ export async function PUT(request: Request) {
   if (b?.sleepTime !== undefined) data.sleepTime = timeOrNull(b.sleepTime);
   if (b?.stressLevel !== undefined) data.stressLevel = level1to5(b.stressLevel);
   if (b?.sleepQuality !== undefined) data.sleepQuality = level1to5(b.sleepQuality);
+  if (b?.footballLeague !== undefined) data.footballLeague = strOrNull(b.footballLeague, 60);
+  if (b?.footballPosition !== undefined) data.footballPosition = strOrNull(b.footballPosition, 40);
+  if (b?.dominantFoot !== undefined)
+    data.dominantFoot = ["left", "right", "both"].includes(b.dominantFoot) ? b.dominantFoot : null;
+  if (b?.trainingExperience !== undefined)
+    data.trainingExperience = strOrNull(b.trainingExperience, 40);
+  if (b?.yearsPlaying !== undefined) data.yearsPlaying = intOrNull(b.yearsPlaying, 0, 60);
+  if (b?.matchMinutes !== undefined) data.matchMinutes = intOrNull(b.matchMinutes, 0, 200);
+  if (b?.gymDaysPerWeek !== undefined) data.gymDaysPerWeek = intOrNull(b.gymDaysPerWeek, 0, 14);
+  if (b?.seasonStartDate !== undefined) data.seasonStartDate = dateOrNull(b.seasonStartDate);
 
   await updateProfile(userId, data);
 

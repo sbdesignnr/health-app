@@ -24,6 +24,14 @@ export async function updateProfile(
     sleepTime?: string | null;
     stressLevel?: number | null;
     sleepQuality?: number | null;
+    footballLeague?: string | null;
+    footballPosition?: string | null;
+    yearsPlaying?: number | null;
+    matchMinutes?: number | null;
+    dominantFoot?: string | null;
+    seasonStartDate?: string | null;
+    gymDaysPerWeek?: number | null;
+    trainingExperience?: string | null;
   },
 ) {
   return prisma.user.update({
@@ -45,6 +53,20 @@ export async function updateProfile(
       sleepTime: data.sleepTime === undefined ? undefined : data.sleepTime,
       stressLevel: data.stressLevel === undefined ? undefined : data.stressLevel,
       sleepQuality: data.sleepQuality === undefined ? undefined : data.sleepQuality,
+      footballLeague: data.footballLeague === undefined ? undefined : data.footballLeague,
+      footballPosition: data.footballPosition === undefined ? undefined : data.footballPosition,
+      yearsPlaying: data.yearsPlaying === undefined ? undefined : data.yearsPlaying,
+      matchMinutes: data.matchMinutes === undefined ? undefined : data.matchMinutes,
+      dominantFoot: data.dominantFoot === undefined ? undefined : data.dominantFoot,
+      seasonStartDate:
+        data.seasonStartDate === undefined
+          ? undefined
+          : data.seasonStartDate
+            ? new Date(data.seasonStartDate)
+            : null,
+      gymDaysPerWeek: data.gymDaysPerWeek === undefined ? undefined : data.gymDaysPerWeek,
+      trainingExperience:
+        data.trainingExperience === undefined ? undefined : data.trainingExperience,
     },
   });
 }

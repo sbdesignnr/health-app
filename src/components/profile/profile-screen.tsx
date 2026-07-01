@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion, type Variants } from "motion/react";
-import { ChevronRight, Dumbbell, MapPin, Check } from "lucide-react";
+import { ChevronRight, Dumbbell, MapPin, Check, CalendarDays } from "lucide-react";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 
 type GoalType = "LOSE_FAT" | "GAIN_MUSCLE" | "MAINTAIN_PERFORMANCE" | "CUSTOM";
@@ -64,6 +64,13 @@ const CONCERN_OPTS = [
   "Nízka energia",
   "Bolesti kĺbov",
   "Slabá imunita",
+];
+
+const EXPERIENCE_OPTS = ["Začiatočník", "Stredne pokročilý", "Pokročilý"];
+const FOOT_OPTS: { key: string; label: string }[] = [
+  { key: "left", label: "Ľavá" },
+  { key: "right", label: "Pravá" },
+  { key: "both", label: "Obojnohý" },
 ];
 
 function pct(p: number): string {
@@ -212,6 +219,14 @@ export function ProfileScreen() {
   const [sleepTime, setSleepTime] = useState("");
   const [stressLevel, setStressLevel] = useState<number | null>(null);
   const [sleepQuality, setSleepQuality] = useState<number | null>(null);
+  const [footballLeague, setFootballLeague] = useState("");
+  const [footballPosition, setFootballPosition] = useState("");
+  const [yearsPlaying, setYearsPlaying] = useState("");
+  const [matchMinutes, setMatchMinutes] = useState("");
+  const [dominantFoot, setDominantFoot] = useState("");
+  const [seasonStartDate, setSeasonStartDate] = useState("");
+  const [gymDaysPerWeek, setGymDaysPerWeek] = useState("");
+  const [trainingExperience, setTrainingExperience] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -236,6 +251,14 @@ export function ProfileScreen() {
           setSleepTime(p.sleepTime ?? "");
           setStressLevel(typeof p.stressLevel === "number" ? p.stressLevel : null);
           setSleepQuality(typeof p.sleepQuality === "number" ? p.sleepQuality : null);
+          setFootballLeague(p.footballLeague ?? "");
+          setFootballPosition(p.footballPosition ?? "");
+          setYearsPlaying(p.yearsPlaying != null ? String(p.yearsPlaying) : "");
+          setMatchMinutes(p.matchMinutes != null ? String(p.matchMinutes) : "");
+          setDominantFoot(p.dominantFoot ?? "");
+          setSeasonStartDate(p.seasonStartDate ?? "");
+          setGymDaysPerWeek(p.gymDaysPerWeek != null ? String(p.gymDaysPerWeek) : "");
+          setTrainingExperience(p.trainingExperience ?? "");
         }
         setGoal((data.goalType as GoalType) ?? "MAINTAIN_PERFORMANCE");
         setBreakdown(data.breakdown ?? null);
@@ -271,6 +294,14 @@ export function ProfileScreen() {
           sleepTime: sleepTime || null,
           stressLevel,
           sleepQuality,
+          footballLeague: footballLeague.trim() || null,
+          footballPosition: footballPosition.trim() || null,
+          yearsPlaying: yearsPlaying ? Number(yearsPlaying) : null,
+          matchMinutes: matchMinutes ? Number(matchMinutes) : null,
+          dominantFoot: dominantFoot || null,
+          seasonStartDate: seasonStartDate || null,
+          gymDaysPerWeek: gymDaysPerWeek ? Number(gymDaysPerWeek) : null,
+          trainingExperience: trainingExperience || null,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Uloženie zlyhalo.");
@@ -311,11 +342,27 @@ export function ProfileScreen() {
 
       <motion.div variants={fade}>
         <Link
-          href="/rozvrh"
+          href="/fitness"
           className="card flex items-center gap-3 p-4 transition active:scale-[0.99]"
         >
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface-3 text-accent">
             <Dumbbell className="h-5 w-5" strokeWidth={1.75} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-fg">Fitness (gym)</p>
+            <p className="text-xs text-muted">AI plán podľa fázy · cviky, série, zápis váh + progres</p>
+          </div>
+          <ChevronRight className="h-5 w-5 shrink-0 text-muted" />
+        </Link>
+      </motion.div>
+
+      <motion.div variants={fade}>
+        <Link
+          href="/rozvrh"
+          className="card flex items-center gap-3 p-4 transition active:scale-[0.99]"
+        >
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface-3 text-accent">
+            <CalendarDays className="h-5 w-5" strokeWidth={1.75} />
           </div>
           <div className="min-w-0 flex-1">
             <p className="font-semibold text-fg">Rozvrh tréningov</p>
@@ -461,6 +508,105 @@ export function ProfileScreen() {
             placeholder="napr. Kreatín, Omega-3, Vitamín D3, Magnézium"
             className={inp}
           />
+        </Field>
+      </motion.div>
+
+      <motion.div variants={fade} className="card space-y-4 p-5">
+        <div>
+          <h2 className="font-semibold text-white">Futbal / šport</h2>
+          <p className="text-xs text-muted">Vstup pre AI tréningové programy (gym + futbal)</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Liga">
+            <input
+              value={footballLeague}
+              onChange={(e) => setFootballLeague(e.target.value)}
+              placeholder="napr. III. liga"
+              className={inp}
+            />
+          </Field>
+          <Field label="Post">
+            <input
+              value={footballPosition}
+              onChange={(e) => setFootballPosition(e.target.value)}
+              placeholder="napr. stredný obranca"
+              className={inp}
+            />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Roky hrania">
+            <input
+              inputMode="numeric"
+              value={yearsPlaying}
+              onChange={(e) => setYearsPlaying(e.target.value)}
+              placeholder="napr. 12"
+              className={inp}
+            />
+          </Field>
+          <Field label="Dĺžka zápasu (min)">
+            <input
+              inputMode="numeric"
+              value={matchMinutes}
+              onChange={(e) => setMatchMinutes(e.target.value)}
+              placeholder="90"
+              className={inp}
+            />
+          </Field>
+        </div>
+
+        <Field label="Silná noha">
+          <div className="flex gap-2">
+            {FOOT_OPTS.map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => setDominantFoot(dominantFoot === f.key ? "" : f.key)}
+                className={`flex-1 rounded-2xl py-3 text-sm font-medium transition active:scale-[0.98] ${
+                  dominantFoot === f.key ? "bg-accent text-accent-fg" : "bg-surface-2 text-muted ring-1 ring-inset ring-border"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </Field>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Začiatok sezóny">
+            <input
+              type="date"
+              value={seasonStartDate}
+              onChange={(e) => setSeasonStartDate(e.target.value)}
+              className={inp}
+            />
+          </Field>
+          <Field label="Gym dní / týždeň">
+            <input
+              inputMode="numeric"
+              value={gymDaysPerWeek}
+              onChange={(e) => setGymDaysPerWeek(e.target.value)}
+              placeholder="napr. 4"
+              className={inp}
+            />
+          </Field>
+        </div>
+
+        <Field label="Skúsenosti v posilňovni">
+          <div className="flex flex-wrap gap-1.5">
+            {EXPERIENCE_OPTS.map((x) => (
+              <button
+                key={x}
+                type="button"
+                onClick={() => setTrainingExperience(trainingExperience === x ? "" : x)}
+                className={pillCls(trainingExperience === x)}
+              >
+                {x}
+              </button>
+            ))}
+          </div>
         </Field>
       </motion.div>
 
