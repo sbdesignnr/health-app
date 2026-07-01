@@ -9,6 +9,7 @@ import {
   type GoalType,
 } from "./energy";
 import { getDayTrainingBurnKcal } from "./schedule";
+import { getDayActualBurnKcal } from "./workout";
 
 export type DailyTargets = {
   caloriesKcal: number;
@@ -101,7 +102,10 @@ export async function getEnergyBreakdown(userId: string, dateStr?: string): Prom
     sex: user.sex,
   });
   const baseline = baselineTdee(bmr, user.activityLevel);
-  const trainingKcal = await getDayTrainingBurnKcal(userId, user.currentWeightKg, dateStr);
+  // Reálny výdaj (Apple Watch / manuál) má prednosť pred MET odhadom.
+  const estimatedBurn = await getDayTrainingBurnKcal(userId, user.currentWeightKg, dateStr);
+  const actualBurn = await getDayActualBurnKcal(userId, dateStr);
+  const trainingKcal = actualBurn ?? estimatedBurn;
   const tdee = baseline + trainingKcal;
   const caloriesKcal = targetCaloriesFromTdee(tdee, goalType);
   const macros = macroTargets({ caloriesKcal, weightKg: user.currentWeightKg, goalType });

@@ -2,6 +2,7 @@ import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileScreen } from "@/components/profile/profile-screen";
 import { PushSettings } from "@/components/push/push-settings";
+import { WorkoutSync } from "@/components/workout/workout-sync";
 import { signOut } from "./actions";
 
 export default async function ProfilPage() {
@@ -31,6 +32,8 @@ export default async function ProfilPage() {
       </div>
 
       <ProfileScreen />
+
+      <WorkoutSync />
 
       <PushSettings />
 

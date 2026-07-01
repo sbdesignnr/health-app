@@ -117,6 +117,7 @@ model User {
   seasonStartDate    DateTime?     @db.Date              // začiatok sezóny
   gymDaysPerWeek     Int?                                // koľkokrát týždenne do gymu
   trainingExperience String?                             // "začiatočník" | "pokročilý"...
+  workoutToken       String?       @unique               // tajný token pre webhook (Apple Watch skratka)
 
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @default(now()) @updatedAt
@@ -133,6 +134,7 @@ model User {
   pushSubscriptions PushSubscription[]
   trainingPrograms  TrainingProgram[]
   exerciseLogs      ExerciseLog[]
+  workoutBurns      WorkoutBurn[]
 }
 
 // ── GOALS (história) ─────────────────────────────────────
@@ -446,4 +448,26 @@ model ExerciseLog {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, exerciseName])
+}
+
+// ── VÝDAJ Z TRÉNINGU (Apple Watch cez skratku / manuál) ──
+enum BurnSource {
+  WATCH
+  MANUAL
+}
+
+model WorkoutBurn {
+  id          String     @id @default(uuid()) @db.Uuid
+  userId      String     @db.Uuid
+  kcal        Int
+  workoutType String?
+  durationMin Int?
+  source      BurnSource @default(WATCH)
+  occurredAt  DateTime   @default(now())
+  burnDate    DateTime   @db.Date                        // lokálny deň (Europe/Bratislava) pre denný súčet
+  createdAt   DateTime   @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, burnDate])
 }

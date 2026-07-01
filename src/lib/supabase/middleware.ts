@@ -33,9 +33,12 @@ export async function updateSession(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   const isAuthRoute = path === "/login" || path.startsWith("/login/");
+  // Verejné API autentifikované vlastným tokenom/tajomstvom (bez session):
+  // webhook z Apple Watch skratky a Vercel cron.
+  const isPublicApi = path.startsWith("/api/workout/ingest") || path.startsWith("/api/cron/");
 
   // Neprihlásený → na login
-  if (!user && !isAuthRoute) {
+  if (!user && !isAuthRoute && !isPublicApi) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
