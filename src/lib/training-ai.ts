@@ -87,7 +87,7 @@ function ageFrom(birth: Date | null | undefined): number | null {
   return a >= 0 && a < 130 ? a : null;
 }
 
-async function gatherGymContext(userId: string): Promise<string> {
+async function gatherAthleteContext(userId: string): Promise<string> {
   const todayStr = new Date().toISOString().slice(0, 10);
 
   const [user, goal, events] = await Promise.all([
@@ -159,7 +159,7 @@ function firstText(content: { type: string; text?: string }[]): string {
 export async function generateGymProgram(
   userId: string,
 ): Promise<{ program: AiProgram; context: string; model: string }> {
-  const context = await gatherGymContext(userId);
+  const context = await gatherAthleteContext(userId);
 
   const res = await anthropic.messages.create({
     model: MODEL,
@@ -177,4 +177,98 @@ export async function generateGymProgram(
   if (res.stop_reason === "refusal") throw new Error("AI odmietlo požiadavku.");
   const program = JSON.parse(firstText(res.content)) as AiProgram;
   return { program, context, model: MODEL };
+}
+
+/* ── FUTBAL modul ─────────────────────────────────────── */
+
+export type AiDrill = { name: string; detail: string };
+export type AiFootballSession = { day: string; title: string; focus: string; drills: AiDrill[] };
+export type AiFootballPlan = {
+  teamTrainingFocus: string[];
+  individualSessions: AiFootballSession[];
+  recoveryTips: string[];
+};
+export type AiFootballResult = { phase: string; summary: string; plan: AiFootballPlan };
+
+const DRILL_SCHEMA = {
+  type: "object",
+  properties: {
+    name: { type: "string", description: "názov cvičenia po slovensky" },
+    detail: { type: "string", description: "ako to spraviť – série/opakovania/čas, prevedenie" },
+  },
+  required: ["name", "detail"],
+  additionalProperties: false,
+};
+const SESSION_SCHEMA = {
+  type: "object",
+  properties: {
+    day: { type: "string", description: "deň, napr. 'Utorok' alebo 'Voľný deň'" },
+    title: { type: "string", description: "názov individuálneho tréningu" },
+    focus: { type: "string", description: "krátke zameranie" },
+    drills: { type: "array", items: DRILL_SCHEMA },
+  },
+  required: ["day", "title", "focus", "drills"],
+  additionalProperties: false,
+};
+const FOOTBALL_SCHEMA = {
+  type: "object",
+  properties: {
+    phase: { type: "string", description: "aktuálna fáza, napr. 'Predsezóna'" },
+    summary: { type: "string", description: "2–3 vety: zameranie na túto fázu podľa postu" },
+    teamTrainingFocus: {
+      type: "array",
+      items: { type: "string" },
+      description: "na čo sa zamerať na spoločných tréningoch (podľa postu a fázy)",
+    },
+    individualSessions: {
+      type: "array",
+      items: SESSION_SCHEMA,
+      description: "individuálne tréningy – čo a kedy trénovať sám (mimo spoločných tréningov, bez preťaženia)",
+    },
+    recoveryTips: {
+      type: "array",
+      items: { type: "string" },
+      description: "regenerácia, mobilita, prevencia zranení",
+    },
+  },
+  required: ["phase", "summary", "teamTrainingFocus", "individualSessions", "recoveryTips"],
+  additionalProperties: false,
+};
+
+const FOOTBALL_SYSTEM = `Si špičkový futbalový tréner a kondičný špecialista. Radíš hráčovi na mieru podľa jeho POSTU, úrovne ligy a fázy sezóny.
+
+VÝSTUP:
+- phase: urči fázu z dátumov (dnes, začiatok sezóny, najbližšie zápasy).
+- summary: 2–3 vety zamerania na túto fázu podľa postu.
+- teamTrainingFocus: konkrétne veci, na ktoré sa má na SPOLOČNÝCH tréningoch zamerať (herné princípy, súboje, prihrávky, presúvanie, komunikácia) – podľa postu.
+- individualSessions: individuálne tréningy MIMO spoločných – čo a kedy trénovať sám (technika, šprinty, zakončenie, hra hlavou, slabšia noha…). Zohľadni rozvrh, aby si sa nepreťažil a nezasiahol do zápasovej sviežosti. Ku každému drilu daj konkrétny detail (série/opakovania/čas).
+- recoveryTips: regenerácia, mobilita, prevencia zranení podľa záťaže.
+
+PRAVIDLÁ:
+- Všetko špecifické pre jeho POST (napr. obranca vs krídelník vs stredopoliar).
+- Predsezóna: budovanie kondície, objem, technika; blízko zápasu: sviežosť, menej objemu; sezóna: udržiavanie + doladenie detailov.
+- Nezaťažuj nohy ťažko tesne pred zápasom/spoločným tréningom.
+- Realistické, vykonateľné amatérom/poloprofesionálom. Po slovensky. Odpovedaj VÝHRADNE cez schému.`;
+
+export async function generateFootballPlan(
+  userId: string,
+): Promise<{ result: AiFootballResult; context: string; model: string }> {
+  const context = await gatherAthleteContext(userId);
+
+  const res = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 8192,
+    system: FOOTBALL_SYSTEM,
+    output_config: { format: { type: "json_schema", schema: FOOTBALL_SCHEMA } },
+    messages: [
+      {
+        role: "user",
+        content: `${context}\n\nZostav futbalový plán na mieru pre aktuálnu fázu a môj post.`,
+      },
+    ],
+  });
+
+  if (res.stop_reason === "refusal") throw new Error("AI odmietlo požiadavku.");
+  const parsed = JSON.parse(firstText(res.content)) as AiFootballResult;
+  return { result: parsed, context, model: MODEL };
 }

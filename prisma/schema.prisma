@@ -394,6 +394,7 @@ model TrainingProgram {
   phase     String                                       // AI-určená fáza, napr. "Predsezóna – sila"
   summary   String?                                      // stručný prehľad zamerania
   context   Json?                                        // vstup do AI (traceability)
+  plan      Json?                                        // futbalový obsah (team focus, individ. sessiony, regenerácia)
   active    Boolean      @default(true)
   createdAt DateTime     @default(now())
 

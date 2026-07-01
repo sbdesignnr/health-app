@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import { generateGymProgram } from "./training-ai";
+import { generateGymProgram, generateFootballPlan, type AiFootballPlan } from "./training-ai";
 
 export type ExerciseDTO = {
   id: string;
@@ -27,6 +27,7 @@ export type ProgramDTO = {
   summary: string | null;
   createdAt: string;
   days: DayDTO[];
+  plan: AiFootballPlan | null;
 };
 
 export type ExerciseLogDTO = {
@@ -76,6 +77,7 @@ export async function getActiveProgram(
     phase: program.phase,
     summary: program.summary,
     createdAt: program.createdAt.toISOString(),
+    plan: (program.plan as AiFootballPlan | null) ?? null,
     days: program.days.map((d) => ({
       id: d.id,
       dayIndex: d.dayIndex,
@@ -138,6 +140,33 @@ export async function generateAndSaveGymProgram(userId: string): Promise<Program
 
   const saved = await getActiveProgram(userId, "GYM");
   if (!saved) throw new Error("Program sa nepodarilo načítať.");
+  return saved;
+}
+
+export async function generateAndSaveFootballProgram(userId: string): Promise<ProgramDTO> {
+  const { result, context, model } = await generateFootballPlan(userId);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.trainingProgram.updateMany({
+      where: { userId, kind: "FOOTBALL", active: true },
+      data: { active: false },
+    });
+    await tx.trainingProgram.create({
+      data: {
+        userId,
+        kind: "FOOTBALL",
+        model,
+        phase: result.phase,
+        summary: result.summary,
+        context: { prompt: context },
+        plan: result.plan,
+        active: true,
+      },
+    });
+  });
+
+  const saved = await getActiveProgram(userId, "FOOTBALL");
+  if (!saved) throw new Error("Plán sa nepodarilo načítať.");
   return saved;
 }
 
