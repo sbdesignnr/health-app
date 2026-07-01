@@ -408,6 +408,7 @@ model TrainingProgram {
   plan      Json?                                        // futbalový obsah (team focus, individ. sessiony, regenerácia)
   guidance  Json?                                        // [odporúčania] – ako postupovať, stav/zranenie, regenerácia
   reviewAfterDays Int?                                   // platnosť plánu (po koľkých dňoch obnoviť)
+  startDate DateTime?    @db.Date                        // od kedy plán platí
   active    Boolean      @default(true)
   createdAt DateTime     @default(now())
 

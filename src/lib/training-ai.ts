@@ -78,6 +78,9 @@ PERIODIZÁCIA PODĽA FÁZY (kľúčové – urči fázu z dátumov):
 PRAVIDLÁ:
 - Vytvor presne toľko tréningových dní, koľko chodí do gymu (gymDaysPerWeek). Ak nie je uvedené, daj 3–4.
 - NEDÁVAJ ťažké nohy tesne pred futbalovým tréningom/zápasom – rozlož záťaž podľa rozvrhu.
+- Futbalové TÍMOVÉ tréningy a zápasy z rozvrhu sú FIXNÉ – NEMEŇ ich. Gym dni rozvrhni na OSTATNÉ dni v týždni.
+- Ku každému gym dňu priraď KONKRÉTNY deň v týždni priamo do "title" (napr. "Pondelok – Dolná časť (sila)").
+- Neuvádzaj konkrétne kalórie ani makrá – tie rieši samostatný jedálniček.
 - Zaraď: viackĺbové cviky (drep, mŕtvy ťah, tlaky, príťahy), posteriorný reťazec (hamstringy, sedacie – dôležité pre šprint a prevenciu), unilaterálne cviky (výpady, bulharské drepy), výbušnosť/plyometria (pre futbal), core a prevenciu (členky, kolená).
 - Ku každému cviku: série, opakovania, intenzita (RPE alebo % 1RM), odpočinok a krátka poznámka.
 - Prispôsob náročnosť skúsenostiam (trainingExperience) a pozícii.
@@ -116,8 +119,10 @@ function ageFrom(birth: Date | null | undefined): number | null {
   return a >= 0 && a < 130 ? a : null;
 }
 
-async function gatherAthleteContext(userId: string): Promise<string> {
+async function gatherAthleteContext(userId: string, startDateStr?: string): Promise<string> {
   const todayStr = new Date().toISOString().slice(0, 10);
+  const start = startDateStr ?? todayStr;
+  const startDow = new Date(`${start}T12:00:00Z`).getUTCDay();
 
   const [user, goal, events] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId } }),
@@ -127,6 +132,7 @@ async function gatherAthleteContext(userId: string): Promise<string> {
 
   const lines: string[] = [];
   lines.push(`DNES: ${todayStr}`);
+  lines.push(`PLÁN ZAČÍNA: ${start} (${SK_DAYS[startDow]}) – rozvrhni tréningy od tohto dňa.`);
   lines.push("");
   lines.push("PROFIL:");
   lines.push(
@@ -197,8 +203,9 @@ function firstText(content: { type: string; text?: string }[]): string {
 
 export async function generateGymProgram(
   userId: string,
+  startDateStr?: string,
 ): Promise<{ program: AiProgram; context: string; model: string }> {
-  const context = await gatherAthleteContext(userId);
+  const context = await gatherAthleteContext(userId, startDateStr);
 
   const res = await anthropic.messages.create({
     model: MODEL,
@@ -311,6 +318,11 @@ AKTUÁLNY STAV / BOLESTI (ak je uvedený):
 - PRISPÔSOB drily – vynechaj alebo uprav to, čo dráždi bolestivé miesto (napr. pri bolesti členka menej obratov s loptou, viac ľahkého behu ak to nebolí).
 - V "guidance" napíš najpravdepodobnejšiu príčinu, ako postupovať a čím regenerovať, a KEDY vyhľadať lekára/fyzioterapeuta (opuch, ostrá bolesť, nelepší sa). VŽDY dodaj, že to nie je lekárska diagnóza.
 
+ROZVRH (dôležité):
+- Futbalové TÍMOVÉ tréningy a zápasy z rozvrhu sú FIXNÉ – NEMEŇ ich. Individuálne tréningy rozvrhni na OSTATNÉ dni tak, aby si nebol unavený pred tímovým tréningom/zápasom.
+- "day" = KRÁTKY názov dňa (napr. "Utorok" alebo "Voľný deň"). Časovanie a detaily daj do "title"/"focus", NIE do "day".
+- Neuvádzaj konkrétne kalórie ani makrá – tie rieši samostatný jedálniček.
+
 PLATNOSŤ A ODPORÚČANIA:
 - "reviewAfterDays" = po koľkých dňoch plán obnoviť (podľa fázy, typicky 14–28; kratšie pri zranení/pred zápasom).
 - "guidance" = 2–4 konkrétne odporúčania ako postupovať počas tohto obdobia a kedy niečo zmeniť.
@@ -320,8 +332,9 @@ PLATNOSŤ A ODPORÚČANIA:
 
 export async function generateFootballPlan(
   userId: string,
+  startDateStr?: string,
 ): Promise<{ result: AiFootballResult; context: string; model: string }> {
-  const context = await gatherAthleteContext(userId);
+  const context = await gatherAthleteContext(userId, startDateStr);
 
   const res = await anthropic.messages.create({
     model: MODEL,

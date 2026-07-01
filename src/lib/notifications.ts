@@ -116,11 +116,12 @@ export async function buildDueNotifications(
   if (hour === 9) {
     const programs = await prisma.trainingProgram.findMany({
       where: { userId, active: true, reviewAfterDays: { not: null } },
-      select: { kind: true, reviewAfterDays: true, createdAt: true },
+      select: { kind: true, reviewAfterDays: true, createdAt: true, startDate: true },
     });
-    const overdue = programs.filter(
-      (p) => Date.now() >= p.createdAt.getTime() + (p.reviewAfterDays ?? 0) * 86400000,
-    );
+    const overdue = programs.filter((p) => {
+      const start = (p.startDate ?? p.createdAt).getTime();
+      return Date.now() >= start + (p.reviewAfterDays ?? 0) * 86400000;
+    });
     if (overdue.length > 0) {
       const kinds = overdue.map((p) => (p.kind === "GYM" ? "gym" : "futbalový")).join(" aj ");
       out.push({

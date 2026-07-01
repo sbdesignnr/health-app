@@ -18,13 +18,35 @@ function ytLink(q: string): string {
   return `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
 }
 
-function planReview(createdAt: string, reviewAfterDays: number | null) {
+function planReview(startDate: string | null, createdAt: string, reviewAfterDays: number | null) {
   if (!reviewAfterDays) return null;
-  const until = new Date(createdAt).getTime() + reviewAfterDays * 86400000;
-  const daysLeft = Math.ceil((until - Date.now()) / 86400000);
+  const start = startDate ? new Date(`${startDate}T00:00:00`) : new Date(createdAt);
+  const end = new Date(start.getTime() + reviewAfterDays * 86400000);
+  const daysLeft = Math.ceil((end.getTime() - Date.now()) / 86400000);
   const p = (n: number) => String(n).padStart(2, "0");
-  const d = new Date(until);
-  return { daysLeft, overdue: daysLeft <= 0, untilStr: `${p(d.getDate())}.${p(d.getMonth() + 1)}.` };
+  const fmt = (d: Date) => `${p(d.getDate())}.${p(d.getMonth() + 1)}.`;
+  return { daysLeft, overdue: daysLeft <= 0, fromStr: fmt(start), toStr: fmt(end) };
+}
+
+function StartSwitch({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="label-caps shrink-0">Začať od</span>
+      <div className="flex flex-1 gap-1 rounded-full bg-surface-2 p-1 text-sm">
+        {[0, 1].map((o) => (
+          <button
+            key={o}
+            onClick={() => onChange(o)}
+            className={`flex-1 rounded-full py-1.5 font-medium transition active:scale-[0.98] ${
+              value === o ? "bg-accent text-accent-fg" : "text-muted"
+            }`}
+          >
+            {o === 0 ? "Dnes" : "Zajtra"}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 type Drill = { name: string; detail: string };
@@ -40,6 +62,7 @@ type Program = {
   summary: string | null;
   model: string;
   createdAt: string;
+  startDate: string | null;
   reviewAfterDays: number | null;
   guidance: string[] | null;
   plan: FootballPlan | null;
@@ -73,6 +96,7 @@ export function FootballScreen() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
+  const [startOffset, setStartOffset] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -92,7 +116,7 @@ export function FootballScreen() {
       const res = await fetch("/api/training", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: "FOOTBALL" }),
+        body: JSON.stringify({ kind: "FOOTBALL", startOffset }),
       });
       const text = await res.text();
       let d: { program?: Program; error?: string } | null = null;
@@ -164,6 +188,7 @@ export function FootballScreen() {
             {error}
           </p>
         )}
+        <StartSwitch value={startOffset} onChange={setStartOffset} />
         <button
           onClick={generate}
           className="flex w-full items-center justify-center gap-2 rounded-card bg-accent py-4 font-semibold text-accent-fg shadow-[0_0_24px_rgba(168,255,62,0.18)] transition active:scale-[0.98]"
@@ -176,7 +201,7 @@ export function FootballScreen() {
   }
 
   const plan = program.plan;
-  const review = planReview(program.createdAt, program.reviewAfterDays);
+  const review = planReview(program.startDate, program.createdAt, program.reviewAfterDays);
 
   return (
     <motion.div
@@ -206,8 +231,8 @@ export function FootballScreen() {
           >
             <CalendarClock className="h-3.5 w-3.5" strokeWidth={2} />
             {review.overdue
-              ? "Čas obnoviť plán — prešla doba tejto fázy."
-              : `Plán platí ešte ~${review.daysLeft} dní (obnov po ${review.untilStr})`}
+              ? `Platnosť ${review.fromStr} – ${review.toStr} uplynula — čas obnoviť plán.`
+              : `Platí ${review.fromStr} – ${review.toStr} (ešte ~${review.daysLeft} dní)`}
           </div>
         )}
       </motion.div>
@@ -260,14 +285,12 @@ export function FootballScreen() {
           </div>
           {plan.individualSessions.map((s, si) => (
             <div key={si} className="card space-y-3 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="font-semibold text-white">{s.title}</p>
-                  {s.focus && <p className="mt-0.5 text-xs text-muted">{s.focus}</p>}
-                </div>
-                <span className="shrink-0 rounded-full bg-surface-3 px-2.5 py-1 text-[11px] font-medium text-accent">
+              <div>
+                <span className="inline-block rounded-full bg-surface-3 px-2.5 py-1 text-[11px] font-medium text-accent">
                   {s.day}
                 </span>
+                <p className="mt-2 font-semibold leading-snug text-white">{s.title}</p>
+                {s.focus && <p className="mt-0.5 text-xs leading-relaxed text-muted">{s.focus}</p>}
               </div>
               <div className="space-y-2 border-t border-border pt-3">
                 {s.drills.map((d, di) => (
@@ -305,13 +328,16 @@ export function FootballScreen() {
         </motion.div>
       )}
 
+      <motion.div variants={fade}>
+        <StartSwitch value={startOffset} onChange={setStartOffset} />
+      </motion.div>
       <motion.button
         variants={fade}
         onClick={generate}
         className="flex w-full items-center justify-center gap-2 rounded-card border border-border bg-surface-2/50 py-3.5 text-sm font-medium text-muted transition active:scale-[0.99]"
       >
         <RefreshCw className="h-4 w-4" strokeWidth={2} />
-        Regenerovať plán podľa fázy
+        Regenerovať plán (podľa fázy a stavu)
       </motion.button>
     </motion.div>
   );

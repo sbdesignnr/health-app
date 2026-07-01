@@ -23,12 +23,13 @@ export async function POST(request: Request) {
 
   const b = await request.json().catch(() => null);
   const kind = b?.kind === "FOOTBALL" ? "FOOTBALL" : "GYM";
+  const startOffset = b?.startOffset === 1 ? 1 : 0;
 
   try {
     const program =
       kind === "FOOTBALL"
-        ? await generateAndSaveFootballProgram(userId)
-        : await generateAndSaveGymProgram(userId);
+        ? await generateAndSaveFootballProgram(userId, startOffset)
+        : await generateAndSaveGymProgram(userId, startOffset);
     return NextResponse.json({ program });
   } catch (e) {
     return NextResponse.json(

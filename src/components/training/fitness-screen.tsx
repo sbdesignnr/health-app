@@ -9,15 +9,36 @@ function ytLink(q: string): string {
   return `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
 }
 
-// Info o platnosti plánu: koľko dní ostáva a či je čas obnoviť.
-function planReview(createdAt: string, reviewAfterDays: number | null) {
+// Platnosť plánu: od–do a či je čas obnoviť.
+function planReview(startDate: string | null, createdAt: string, reviewAfterDays: number | null) {
   if (!reviewAfterDays) return null;
-  const created = new Date(createdAt).getTime();
-  const until = created + reviewAfterDays * 86400000;
-  const daysLeft = Math.ceil((until - Date.now()) / 86400000);
+  const start = startDate ? new Date(`${startDate}T00:00:00`) : new Date(createdAt);
+  const end = new Date(start.getTime() + reviewAfterDays * 86400000);
+  const daysLeft = Math.ceil((end.getTime() - Date.now()) / 86400000);
   const p = (n: number) => String(n).padStart(2, "0");
-  const d = new Date(until);
-  return { daysLeft, overdue: daysLeft <= 0, untilStr: `${p(d.getDate())}.${p(d.getMonth() + 1)}.` };
+  const fmt = (d: Date) => `${p(d.getDate())}.${p(d.getMonth() + 1)}.`;
+  return { daysLeft, overdue: daysLeft <= 0, fromStr: fmt(start), toStr: fmt(end) };
+}
+
+function StartSwitch({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="label-caps shrink-0">Začať od</span>
+      <div className="flex flex-1 gap-1 rounded-full bg-surface-2 p-1 text-sm">
+        {[0, 1].map((o) => (
+          <button
+            key={o}
+            onClick={() => onChange(o)}
+            className={`flex-1 rounded-full py-1.5 font-medium transition active:scale-[0.98] ${
+              value === o ? "bg-accent text-accent-fg" : "text-muted"
+            }`}
+          >
+            {o === 0 ? "Dnes" : "Zajtra"}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 type Exercise = {
@@ -38,6 +59,7 @@ type Program = {
   summary: string | null;
   model: string;
   createdAt: string;
+  startDate: string | null;
   reviewAfterDays: number | null;
   guidance: string[] | null;
   days: Day[];
@@ -281,6 +303,7 @@ export function FitnessScreen() {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const [logEx, setLogEx] = useState<Exercise | null>(null);
+  const [startOffset, setStartOffset] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -300,7 +323,7 @@ export function FitnessScreen() {
       const res = await fetch("/api/training", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: "GYM" }),
+        body: JSON.stringify({ kind: "GYM", startOffset }),
       });
       const text = await res.text();
       let d: { program?: Program; error?: string } | null = null;
@@ -388,6 +411,7 @@ export function FitnessScreen() {
             {error}
           </p>
         )}
+        <StartSwitch value={startOffset} onChange={setStartOffset} />
         <button
           onClick={generate}
           className="flex w-full items-center justify-center gap-2 rounded-card bg-accent py-4 font-semibold text-accent-fg shadow-[0_0_24px_rgba(168,255,62,0.18)] transition active:scale-[0.98]"
@@ -399,7 +423,7 @@ export function FitnessScreen() {
     );
   }
 
-  const review = planReview(program.createdAt, program.reviewAfterDays);
+  const review = planReview(program.startDate, program.createdAt, program.reviewAfterDays);
 
   return (
     <motion.div
@@ -433,8 +457,8 @@ export function FitnessScreen() {
           >
             <CalendarClock className="h-3.5 w-3.5" strokeWidth={2} />
             {review.overdue
-              ? "Čas obnoviť plán — prešla doba tejto fázy."
-              : `Plán platí ešte ~${review.daysLeft} dní (obnov po ${review.untilStr})`}
+              ? `Platnosť ${review.fromStr} – ${review.toStr} uplynula — čas obnoviť plán.`
+              : `Platí ${review.fromStr} – ${review.toStr} (ešte ~${review.daysLeft} dní)`}
           </div>
         )}
       </motion.div>
@@ -475,13 +499,16 @@ export function FitnessScreen() {
         </motion.div>
       ))}
 
+      <motion.div variants={fade}>
+        <StartSwitch value={startOffset} onChange={setStartOffset} />
+      </motion.div>
       <motion.button
         variants={fade}
         onClick={generate}
         className="flex w-full items-center justify-center gap-2 rounded-card border border-border bg-surface-2/50 py-3.5 text-sm font-medium text-muted transition active:scale-[0.99]"
       >
         <RefreshCw className="h-4 w-4" strokeWidth={2} />
-        Regenerovať plán podľa fázy
+        Regenerovať plán (podľa fázy a stavu)
       </motion.button>
 
       {logEx && (

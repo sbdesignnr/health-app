@@ -1,6 +1,13 @@
 import { prisma } from "./prisma";
 import { generateGymProgram, generateFootballPlan, type AiFootballPlan } from "./training-ai";
 
+function startDateFor(offset: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
 export type ExerciseDTO = {
   id: string;
   name: string;
@@ -30,6 +37,7 @@ export type ProgramDTO = {
   plan: AiFootballPlan | null;
   reviewAfterDays: number | null;
   guidance: string[] | null;
+  startDate: string | null;
 };
 
 export type ExerciseLogDTO = {
@@ -82,6 +90,7 @@ export async function getActiveProgram(
     plan: (program.plan as AiFootballPlan | null) ?? null,
     reviewAfterDays: program.reviewAfterDays ?? null,
     guidance: (program.guidance as string[] | null) ?? null,
+    startDate: program.startDate ? program.startDate.toISOString().slice(0, 10) : null,
     days: program.days.map((d) => ({
       id: d.id,
       dayIndex: d.dayIndex,
@@ -102,8 +111,12 @@ export async function getActiveProgram(
   };
 }
 
-export async function generateAndSaveGymProgram(userId: string): Promise<ProgramDTO> {
-  const { program, context, model } = await generateGymProgram(userId);
+export async function generateAndSaveGymProgram(
+  userId: string,
+  startOffset = 0,
+): Promise<ProgramDTO> {
+  const startStr = startDateFor(startOffset);
+  const { program, context, model } = await generateGymProgram(userId, startStr);
 
   await prisma.$transaction(async (tx) => {
     await tx.trainingProgram.updateMany({
@@ -119,6 +132,7 @@ export async function generateAndSaveGymProgram(userId: string): Promise<Program
         summary: program.summary,
         reviewAfterDays: program.reviewAfterDays,
         guidance: program.guidance,
+        startDate: new Date(`${startStr}T00:00:00Z`),
         context: { prompt: context },
         active: true,
         days: {
@@ -149,8 +163,12 @@ export async function generateAndSaveGymProgram(userId: string): Promise<Program
   return saved;
 }
 
-export async function generateAndSaveFootballProgram(userId: string): Promise<ProgramDTO> {
-  const { result, context, model } = await generateFootballPlan(userId);
+export async function generateAndSaveFootballProgram(
+  userId: string,
+  startOffset = 0,
+): Promise<ProgramDTO> {
+  const startStr = startDateFor(startOffset);
+  const { result, context, model } = await generateFootballPlan(userId, startStr);
 
   await prisma.$transaction(async (tx) => {
     await tx.trainingProgram.updateMany({
@@ -166,6 +184,7 @@ export async function generateAndSaveFootballProgram(userId: string): Promise<Pr
         summary: result.summary,
         reviewAfterDays: result.reviewAfterDays,
         guidance: result.guidance,
+        startDate: new Date(`${startStr}T00:00:00Z`),
         context: { prompt: context },
         plan: result.plan,
         active: true,
