@@ -121,15 +121,25 @@ export function PushSettings() {
       </div>
 
       {!supported ? (
-        <p className="text-sm text-muted">Tento prehliadač push notifikácie nepodporuje.</p>
+        <p className="rounded-xl bg-surface-2 p-3 text-sm text-muted">
+          Tento prehliadač push notifikácie nepodporuje.
+        </p>
+      ) : needsInstall ? (
+        <div className="space-y-2 rounded-xl bg-surface-2 p-3.5 text-xs text-muted">
+          <p className="text-sm font-semibold text-white">Najprv pridaj appku na plochu</p>
+          <p>iOS povolí notifikácie iba z appky spustenej z plochy (nie z prehliadača):</p>
+          <ol className="list-decimal space-y-1 pl-4 marker:text-accent">
+            <li>
+              V Safari ťukni na <span className="font-medium text-fg">Zdieľať</span> (štvorec so šípkou hore)
+            </li>
+            <li>
+              Vyber <span className="font-medium text-fg">Pridať na plochu</span>
+            </li>
+            <li>Otvor appku z plochy a vráť sa sem – tlačidlo „Zapnúť“ sa objaví</li>
+          </ol>
+        </div>
       ) : (
         <>
-          {needsInstall && (
-            <p className="rounded-xl bg-surface-2 p-3 text-xs text-muted">
-              Na iPhone: otvor appku z plochy (Zdieľať → Pridať na plochu), inak iOS push neumožní.
-            </p>
-          )}
-
           {!subscribed ? (
             <button
               onClick={enable}
@@ -157,7 +167,17 @@ export function PushSettings() {
             </div>
           )}
 
-          {msg && <p className="text-sm text-muted">{msg}</p>}
+          {msg && (
+            <p
+              className={`rounded-xl px-3 py-2 text-sm ${
+                msg.includes("✓") || msg.startsWith("Odoslané")
+                  ? "bg-accent/10 text-accent ring-1 ring-inset ring-accent/20"
+                  : "text-muted"
+              }`}
+            >
+              {msg}
+            </p>
+          )}
         </>
       )}
     </div>
