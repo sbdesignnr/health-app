@@ -1,0 +1,355 @@
+// prisma/schema.prisma
+// Health Assistant – databázová schéma (Prisma 7, PostgreSQL/Supabase)
+
+generator client {
+  provider = "prisma-client"        // Prisma 7 – Rust-free klient
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Prisma 7: url/directUrl sa presunuli do prisma.config.ts;
+  // runtime pripojenie ide cez driver adapter (@prisma/adapter-pg).
+}
+
+// ── ENUMS ────────────────────────────────────────────────
+enum Sex {
+  MALE
+  FEMALE
+}
+
+enum ActivityLevel {
+  SEDENTARY
+  LIGHT
+  MODERATE
+  ACTIVE
+  VERY_ACTIVE
+}
+
+enum GoalType {
+  LOSE_FAT
+  GAIN_MUSCLE
+  MAINTAIN_PERFORMANCE
+  CUSTOM
+}
+
+enum FoodSource {
+  OFF_VERIFIED
+  AI_ESTIMATED
+  CUSTOM
+}
+
+enum MealType {
+  BREAKFAST
+  MORNING_SNACK
+  LUNCH
+  AFTERNOON_SNACK
+  DINNER
+}
+
+enum EventType {
+  FOOTBALL_TRAINING
+  GYM
+  MATCH
+  REST
+  CUSTOM
+}
+
+enum Intensity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum MacrosSource {
+  AI_ESTIMATED
+  MANUAL
+}
+
+enum InsightType {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum MealPlanStatus {
+  GENERATED
+  EDITED
+  ACCEPTED
+}
+
+enum NotificationType {
+  WATER
+  MEAL_TIMING
+  WEATHER_ALERT
+  EVAL_READY
+  CUSTOM
+}
+
+// ── USER & PROFILE ───────────────────────────────────────
+model User {
+  id              String        @id @db.Uuid             // = auth.users.id (Supabase)
+  email           String        @unique
+  name            String?
+  heightCm        Int?
+  birthDate       DateTime?     @db.Date
+  sex             Sex?
+  activityLevel   ActivityLevel @default(MODERATE)
+  currentWeightKg Float?                                 // denorm cache poslednej váhy
+  dietType        String?                                // napr. "omnivore", "vegetarian"
+  allergies       String[]      @default([])
+  dislikes        String[]      @default([])
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @default(now()) @updatedAt
+
+  goals             Goal[]
+  weightLogs        WeightLog[]
+  foods             Food[]
+  foodLogs          FoodLog[]
+  scheduleEvents    ScheduleEvent[]
+  restaurants       Restaurant[]
+  mealPlans         MealPlan[]
+  aiInsights        AiInsight[]
+  notifications     Notification[]
+  pushSubscriptions PushSubscription[]
+}
+
+// ── GOALS (história) ─────────────────────────────────────
+model Goal {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @db.Uuid
+  type           GoalType
+  targetWeightKg Float?
+  targetCalories Int?      // ak null → počíta sa z TDEE + type
+  targetProteinG Int?
+  targetCarbsG   Int?
+  targetFatG     Int?
+  validFrom      DateTime  @default(now())
+  validTo        DateTime?                               // null = aktuálne platný
+  note           String?
+  createdAt      DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, validFrom])
+}
+
+// ── VÁHA ─────────────────────────────────────────────────
+model WeightLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  weightKg   Float
+  measuredAt DateTime @default(now())
+  note       String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, measuredAt])
+}
+
+// ── POTRAVINY (zdieľaná cache + vlastné) ─────────────────
+model Food {
+  id           String     @id @default(uuid()) @db.Uuid
+  userId       String?    @db.Uuid                       // null = globálna cache; set = vlastná potravina
+  barcode      String?                                   // OFF EAN
+  name         String
+  brand        String?
+  source       FoodSource
+  caloriesKcal Float                                     // na 100 g
+  proteinG     Float
+  carbsG       Float
+  fatG         Float
+  fiberG       Float?
+  sugarG       Float?
+  saltG        Float?
+  servingSizeG Float?
+  offData      Json?                                     // surový Open Food Facts payload
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @default(now()) @updatedAt
+
+  user     User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  foodLogs FoodLog[]
+
+  @@index([barcode])
+  @@index([userId])
+}
+
+// ── DENNÝ ZÁZNAM JEDLA ───────────────────────────────────
+model FoodLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @db.Uuid
+  foodId       String   @db.Uuid
+  mealType     MealType
+  portionG     Float
+  caloriesKcal Float                                     // snapshot makier v čase zápisu
+  proteinG     Float
+  carbsG       Float
+  fatG         Float
+  loggedAt     DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  food Food @relation(fields: [foodId], references: [id])
+
+  @@index([userId, loggedAt])
+}
+
+// ── ROZVRH (tréningy / posilňovňa / zápasy) ──────────────
+model ScheduleEvent {
+  id                   String    @id @default(uuid()) @db.Uuid
+  userId               String    @db.Uuid
+  type                 EventType
+  title                String?
+  gymFocus             String?                           // napr. "legs", "chest", "back"
+  intensity            Intensity @default(MEDIUM)
+  isRecurring          Boolean   @default(false)
+  dayOfWeek            Int?                              // 0–6, pre opakujúce sa
+  date                 DateTime? @db.Date                // pre jednorazové / výnimky
+  startTime            String?                           // "HH:MM"
+  durationMin          Int?
+  estimatedCalorieBurn Int?                              // net kcal (MET formula)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @default(now()) @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ── REŠTAURÁCIE (Nitra) ──────────────────────────────────
+model Restaurant {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @db.Uuid
+  name      String
+  address   String?
+  placeId   String?                                      // voliteľné Google Places
+  createdAt DateTime         @default(now())
+
+  user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  menus RestaurantMenu[]
+
+  @@index([userId])
+}
+
+model RestaurantMenu {
+  id           String     @id @default(uuid()) @db.Uuid
+  restaurantId String     @db.Uuid
+  validFrom    DateTime   @db.Date
+  validTo      DateTime?  @db.Date
+  createdAt    DateTime   @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  items      MenuItem[]
+
+  @@index([restaurantId, validFrom])
+}
+
+model MenuItem {
+  id           String       @id @default(uuid()) @db.Uuid
+  menuId       String       @db.Uuid
+  dayOfWeek    Int?                                      // 0–6, null = celý týždeň
+  name         String
+  description  String?
+  priceEur     Float?
+  caloriesKcal Float?                                    // AI/manuálny odhad
+  proteinG     Float?
+  carbsG       Float?
+  fatG         Float?
+  macrosSource MacrosSource @default(AI_ESTIMATED)
+  createdAt    DateTime     @default(now())
+
+  menu      RestaurantMenu @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  planItems MealPlanItem[]
+
+  @@index([menuId])
+}
+
+// ── AI JEDÁLNIČKY ────────────────────────────────────────
+model MealPlan {
+  id             String         @id @default(uuid()) @db.Uuid
+  userId         String         @db.Uuid
+  date           DateTime       @db.Date
+  model          String                                  // napr. "claude-sonnet-4-6"
+  targetCalories Int
+  targetProteinG Int
+  targetCarbsG   Int
+  targetFatG     Int
+  status         MealPlanStatus @default(GENERATED)
+  context        Json?                                   // payload odoslaný do AI (traceability)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @default(now()) @updatedAt
+
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items MealPlanItem[]
+
+  @@index([userId, date])
+}
+
+model MealPlanItem {
+  id           String   @id @default(uuid()) @db.Uuid
+  mealPlanId   String   @db.Uuid
+  mealType     MealType
+  name         String
+  description  String?
+  portionG     Float?
+  caloriesKcal Float
+  proteinG     Float
+  carbsG       Float
+  fatG         Float
+  menuItemId   String?  @db.Uuid                         // ak je to návrh z reštaurácie
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  mealPlan MealPlan  @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+  menuItem MenuItem? @relation(fields: [menuItemId], references: [id])
+
+  @@index([mealPlanId])
+}
+
+// ── AI VYHODNOTENIA (týždenné / mesačné) ─────────────────
+model AiInsight {
+  id          String      @id @default(uuid()) @db.Uuid
+  userId      String      @db.Uuid
+  type        InsightType
+  periodStart DateTime    @db.Date
+  periodEnd   DateTime    @db.Date
+  model       String                                     // napr. "claude-opus-4-8"
+  summary     String?
+  content     Json                                       // štruktúrované zistenia + odporúčania
+  createdAt   DateTime    @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, periodStart])
+}
+
+// ── NOTIFIKÁCIE & WEB PUSH ───────────────────────────────
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @db.Uuid
+  type      NotificationType
+  title     String
+  body      String
+  sentAt    DateTime         @default(now())
+  meta      Json?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, sentAt])
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
