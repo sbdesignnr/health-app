@@ -1,5 +1,11 @@
 import { prisma } from "./prisma";
-import { generatePlan, generateSingleMeal, type AiMealItem } from "./meal-plan-ai";
+import {
+  generatePlan,
+  generateSingleMeal,
+  type AiIngredient,
+  type AiMealItem,
+  type AiSupplement,
+} from "./meal-plan-ai";
 
 type MealTypeLit = "BREAKFAST" | "MORNING_SNACK" | "LUNCH" | "AFTERNOON_SNACK" | "DINNER";
 
@@ -18,6 +24,8 @@ export type PlanItemDTO = {
   mealType: string;
   name: string;
   description: string | null;
+  timeOfDay: string | null;
+  ingredients: AiIngredient[] | null;
   portionG: number | null;
   caloriesKcal: number;
   proteinG: number;
@@ -34,6 +42,8 @@ export type PlanDTO = {
   targetProteinG: number;
   targetCarbsG: number;
   targetFatG: number;
+  dailyTip: string | null;
+  supplementPlan: AiSupplement[] | null;
   items: PlanItemDTO[];
 };
 
@@ -45,11 +55,15 @@ type PlanRow = {
   targetProteinG: number;
   targetCarbsG: number;
   targetFatG: number;
+  dailyTip: string | null;
+  supplementPlan: unknown;
   items: {
     id: string;
     mealType: string;
     name: string;
     description: string | null;
+    timeOfDay: string | null;
+    ingredients: unknown;
     portionG: number | null;
     caloriesKcal: number;
     proteinG: number;
@@ -68,6 +82,8 @@ function toDTO(plan: PlanRow): PlanDTO {
     targetProteinG: plan.targetProteinG,
     targetCarbsG: plan.targetCarbsG,
     targetFatG: plan.targetFatG,
+    dailyTip: plan.dailyTip,
+    supplementPlan: (plan.supplementPlan as AiSupplement[] | null) ?? null,
     items: plan.items
       .slice()
       .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -76,6 +92,8 @@ function toDTO(plan: PlanRow): PlanDTO {
         mealType: i.mealType,
         name: i.name,
         description: i.description,
+        timeOfDay: i.timeOfDay,
+        ingredients: (i.ingredients as AiIngredient[] | null) ?? null,
         portionG: i.portionG,
         caloriesKcal: i.caloriesKcal,
         proteinG: i.proteinG,
@@ -95,7 +113,7 @@ export async function getPlan(userId: string, dateStr: string): Promise<PlanDTO 
 }
 
 export async function generateAndSave(userId: string, dateStr: string): Promise<PlanDTO> {
-  const { items, context, model, targets } = await generatePlan(userId, dateStr);
+  const { items, dailyTip, supplementPlan, context, model, targets } = await generatePlan(userId, dateStr);
   const date = new Date(`${dateStr}T00:00:00Z`);
 
   await prisma.$transaction(async (tx) => {
@@ -111,11 +129,15 @@ export async function generateAndSave(userId: string, dateStr: string): Promise<
         targetFatG: targets.fatG,
         status: "GENERATED",
         context: { prompt: context },
+        dailyTip,
+        supplementPlan,
         items: {
           create: items.map((m, i) => ({
             mealType: m.mealType as MealTypeLit,
             name: m.name,
             description: m.description,
+            timeOfDay: m.timeOfDay,
+            ingredients: m.ingredients,
             portionG: m.portionG,
             caloriesKcal: m.caloriesKcal,
             proteinG: m.proteinG,
@@ -147,6 +169,8 @@ export async function swapItem(userId: string, itemId: string): Promise<PlanItem
       mealType: i.mealType,
       name: i.name,
       description: i.description ?? "",
+      timeOfDay: i.timeOfDay ?? "",
+      ingredients: (i.ingredients as AiIngredient[] | null) ?? [],
       portionG: i.portionG ?? 0,
       caloriesKcal: i.caloriesKcal,
       proteinG: i.proteinG,
@@ -161,6 +185,8 @@ export async function swapItem(userId: string, itemId: string): Promise<PlanItem
     data: {
       name: replacement.name,
       description: replacement.description,
+      timeOfDay: replacement.timeOfDay,
+      ingredients: replacement.ingredients,
       portionG: replacement.portionG,
       caloriesKcal: replacement.caloriesKcal,
       proteinG: replacement.proteinG,
@@ -174,6 +200,8 @@ export async function swapItem(userId: string, itemId: string): Promise<PlanItem
     mealType: updated.mealType,
     name: updated.name,
     description: updated.description,
+    timeOfDay: updated.timeOfDay,
+    ingredients: (updated.ingredients as AiIngredient[] | null) ?? null,
     portionG: updated.portionG,
     caloriesKcal: updated.caloriesKcal,
     proteinG: updated.proteinG,

@@ -99,6 +99,14 @@ model User {
   dietType        String?                                // napr. "omnivore", "vegetarian"
   allergies       String[]      @default([])
   dislikes        String[]      @default([])
+  likes           String[]      @default([])             // obľúbené jedlá
+  supplements     String[]      @default([])             // doplnky, ktoré užíva
+  healthConcerns  String[]      @default([])             // koža/vyrážky, vlasy, trávenie, spánok...
+  healthNotes     String?                                // voľné poznámky (psychika, stav)
+  wakeTime        String?                                // "07:00"
+  sleepTime       String?                                // "23:00"
+  stressLevel     Int?                                   // 1–5 (subjektívny stres)
+  sleepQuality    Int?                                   // 1–5 (kvalita spánku)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @default(now()) @updatedAt
 
@@ -277,6 +285,8 @@ model MealPlan {
   targetFatG     Int
   status         MealPlanStatus @default(GENERATED)
   context        Json?                                   // payload odoslaný do AI (traceability)
+  dailyTip       String?                                 // konkrétny dnešný tip od AI
+  supplementPlan Json?                                   // [{ name, timing, reason }]
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @default(now()) @updatedAt
 
@@ -292,6 +302,8 @@ model MealPlanItem {
   mealType     MealType
   name         String
   description  String?
+  timeOfDay    String?                                 // "07:30" – kedy jesť (fyziológia)
+  ingredients  Json?                                   // [{ name, grams }] – gramáž surovín
   portionG     Float?
   caloriesKcal Float
   proteinG     Float

@@ -30,6 +30,14 @@ export async function GET() {
           dietType: user.dietType,
           allergies: user.allergies,
           dislikes: user.dislikes,
+          likes: user.likes,
+          supplements: user.supplements,
+          healthConcerns: user.healthConcerns,
+          healthNotes: user.healthNotes,
+          wakeTime: user.wakeTime,
+          sleepTime: user.sleepTime,
+          stressLevel: user.stressLevel,
+          sleepQuality: user.sleepQuality,
         }
       : null,
     goalType: goal?.type ?? "MAINTAIN_PERFORMANCE",
@@ -51,7 +59,24 @@ export async function PUT(request: Request) {
     dietType?: string | null;
     allergies?: string[];
     dislikes?: string[];
+    likes?: string[];
+    supplements?: string[];
+    healthConcerns?: string[];
+    healthNotes?: string | null;
+    wakeTime?: string | null;
+    sleepTime?: string | null;
+    stressLevel?: number | null;
+    sleepQuality?: number | null;
   } = {};
+
+  const cleanTags = (arr: unknown[]): string[] =>
+    arr.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim());
+  const timeOrNull = (v: unknown): string | null =>
+    typeof v === "string" && /^\d{1,2}:\d{2}$/.test(v.trim()) ? v.trim() : null;
+  const level1to5 = (v: unknown): number | null => {
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 1 && n <= 5 ? Math.round(n) : null;
+  };
 
   if (b?.name !== undefined) {
     const n = typeof b.name === "string" ? b.name.trim() : "";
@@ -100,6 +125,19 @@ export async function PUT(request: Request) {
       .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
       .map((x) => x.trim());
   }
+  if (Array.isArray(b?.likes)) data.likes = cleanTags(b.likes as unknown[]);
+  if (Array.isArray(b?.supplements)) data.supplements = cleanTags(b.supplements as unknown[]);
+  if (Array.isArray(b?.healthConcerns)) data.healthConcerns = cleanTags(b.healthConcerns as unknown[]);
+  if (b?.healthNotes !== undefined) {
+    data.healthNotes =
+      typeof b.healthNotes === "string" && b.healthNotes.trim()
+        ? b.healthNotes.trim().slice(0, 1000)
+        : null;
+  }
+  if (b?.wakeTime !== undefined) data.wakeTime = timeOrNull(b.wakeTime);
+  if (b?.sleepTime !== undefined) data.sleepTime = timeOrNull(b.sleepTime);
+  if (b?.stressLevel !== undefined) data.stressLevel = level1to5(b.stressLevel);
+  if (b?.sleepQuality !== undefined) data.sleepQuality = level1to5(b.sleepQuality);
 
   await updateProfile(userId, data);
 

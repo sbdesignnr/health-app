@@ -55,6 +55,17 @@ const DIET_OPTS: { key: string; label: string }[] = [
   { key: "pescatarian", label: "Pescatarián" },
 ];
 
+const CONCERN_OPTS = [
+  "Akné / vyrážky",
+  "Vypadávanie vlasov",
+  "Tráviace problémy",
+  "Zlý spánok",
+  "Stres / úzkosť",
+  "Nízka energia",
+  "Bolesti kĺbov",
+  "Slabá imunita",
+];
+
 function pct(p: number): string {
   const v = Math.round(p * 100);
   return `${v > 0 ? "+" : ""}${v} %`;
@@ -79,6 +90,25 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       <span className="label-caps">{label}</span>
       {children}
     </label>
+  );
+}
+
+function LevelPicker({ value, onChange }: { value: number | null; onChange: (n: number) => void }) {
+  return (
+    <div className="flex gap-1.5">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button
+          key={n}
+          type="button"
+          onClick={() => onChange(n)}
+          className={`h-10 flex-1 rounded-xl text-sm font-semibold tabular-nums transition active:scale-95 ${
+            value === n ? "bg-accent text-accent-fg" : "bg-surface-2 text-muted ring-1 ring-inset ring-border"
+          }`}
+        >
+          {n}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -174,6 +204,14 @@ export function ProfileScreen() {
   const [dietType, setDietType] = useState("");
   const [allergies, setAllergies] = useState("");
   const [dislikes, setDislikes] = useState("");
+  const [likes, setLikes] = useState("");
+  const [supplements, setSupplements] = useState("");
+  const [healthConcerns, setHealthConcerns] = useState<string[]>([]);
+  const [healthNotes, setHealthNotes] = useState("");
+  const [wakeTime, setWakeTime] = useState("");
+  const [sleepTime, setSleepTime] = useState("");
+  const [stressLevel, setStressLevel] = useState<number | null>(null);
+  const [sleepQuality, setSleepQuality] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -190,6 +228,14 @@ export function ProfileScreen() {
           setDietType(p.dietType ?? "");
           setAllergies(Array.isArray(p.allergies) ? p.allergies.join(", ") : "");
           setDislikes(Array.isArray(p.dislikes) ? p.dislikes.join(", ") : "");
+          setLikes(Array.isArray(p.likes) ? p.likes.join(", ") : "");
+          setSupplements(Array.isArray(p.supplements) ? p.supplements.join(", ") : "");
+          setHealthConcerns(Array.isArray(p.healthConcerns) ? p.healthConcerns : []);
+          setHealthNotes(p.healthNotes ?? "");
+          setWakeTime(p.wakeTime ?? "");
+          setSleepTime(p.sleepTime ?? "");
+          setStressLevel(typeof p.stressLevel === "number" ? p.stressLevel : null);
+          setSleepQuality(typeof p.sleepQuality === "number" ? p.sleepQuality : null);
         }
         setGoal((data.goalType as GoalType) ?? "MAINTAIN_PERFORMANCE");
         setBreakdown(data.breakdown ?? null);
@@ -217,6 +263,14 @@ export function ProfileScreen() {
           dietType: dietType || null,
           allergies: splitTags(allergies),
           dislikes: splitTags(dislikes),
+          likes: splitTags(likes),
+          supplements: splitTags(supplements),
+          healthConcerns,
+          healthNotes: healthNotes.trim() || null,
+          wakeTime: wakeTime || null,
+          sleepTime: sleepTime || null,
+          stressLevel,
+          sleepQuality,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Uloženie zlyhalo.");
@@ -349,6 +403,69 @@ export function ProfileScreen() {
 
       <motion.div variants={fade} className="card space-y-4 p-5">
         <div>
+          <h2 className="font-semibold text-white">Zdravie a životný štýl</h2>
+          <p className="text-xs text-muted">Toto AI zohľadní pri jedálničku na mieru</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Čas budenia">
+            <input type="time" value={wakeTime} onChange={(e) => setWakeTime(e.target.value)} className={inp} />
+          </Field>
+          <Field label="Čas spánku">
+            <input type="time" value={sleepTime} onChange={(e) => setSleepTime(e.target.value)} className={inp} />
+          </Field>
+        </div>
+
+        <Field label="Kvalita spánku (1 = zlá, 5 = výborná)">
+          <LevelPicker value={sleepQuality} onChange={setSleepQuality} />
+        </Field>
+
+        <Field label="Úroveň stresu (1 = pokoj, 5 = vysoký)">
+          <LevelPicker value={stressLevel} onChange={setStressLevel} />
+        </Field>
+
+        <Field label="Na čo sa zamerať (zdravie)">
+          <div className="flex flex-wrap gap-1.5">
+            {CONCERN_OPTS.map((cc) => {
+              const active = healthConcerns.includes(cc);
+              return (
+                <button
+                  key={cc}
+                  type="button"
+                  onClick={() =>
+                    setHealthConcerns((s) => (active ? s.filter((x) => x !== cc) : [...s, cc]))
+                  }
+                  className={pillCls(active)}
+                >
+                  {cc}
+                </button>
+              );
+            })}
+          </div>
+        </Field>
+
+        <Field label="Poznámky (psychika, stav, čokoľvek dôležité)">
+          <textarea
+            value={healthNotes}
+            onChange={(e) => setHealthNotes(e.target.value)}
+            rows={3}
+            placeholder="napr. posledný týždeň dosť stresu, občas vyrážky na tvári, cez deň málo energie…"
+            className={`${inp} resize-none`}
+          />
+        </Field>
+
+        <Field label="Výživové doplnky, ktoré užívaš (oddeľ čiarkou)">
+          <input
+            value={supplements}
+            onChange={(e) => setSupplements(e.target.value)}
+            placeholder="napr. Kreatín, Omega-3, Vitamín D3, Magnézium"
+            className={inp}
+          />
+        </Field>
+      </motion.div>
+
+      <motion.div variants={fade} className="card space-y-4 p-5">
+        <div>
           <h2 className="font-semibold text-white">Strava a preferencie</h2>
           <p className="text-xs text-muted">Vstup pre AI jedálničky</p>
         </div>
@@ -382,6 +499,15 @@ export function ProfileScreen() {
             value={dislikes}
             onChange={(e) => setDislikes(e.target.value)}
             placeholder="napr. huby, olivy"
+            className={inp}
+          />
+        </Field>
+
+        <Field label="Obľúbené jedlá (oddeľ čiarkou)">
+          <input
+            value={likes}
+            onChange={(e) => setLikes(e.target.value)}
+            placeholder="napr. kuracie, cestoviny, tvaroh, losos"
             className={inp}
           />
         </Field>

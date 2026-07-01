@@ -16,6 +16,14 @@ export async function updateProfile(
     dietType?: string | null;
     allergies?: string[];
     dislikes?: string[];
+    likes?: string[];
+    supplements?: string[];
+    healthConcerns?: string[];
+    healthNotes?: string | null;
+    wakeTime?: string | null;
+    sleepTime?: string | null;
+    stressLevel?: number | null;
+    sleepQuality?: number | null;
   },
 ) {
   return prisma.user.update({
@@ -29,6 +37,14 @@ export async function updateProfile(
       dietType: data.dietType === undefined ? undefined : data.dietType,
       allergies: data.allergies === undefined ? undefined : data.allergies,
       dislikes: data.dislikes === undefined ? undefined : data.dislikes,
+      likes: data.likes === undefined ? undefined : data.likes,
+      supplements: data.supplements === undefined ? undefined : data.supplements,
+      healthConcerns: data.healthConcerns === undefined ? undefined : data.healthConcerns,
+      healthNotes: data.healthNotes === undefined ? undefined : data.healthNotes,
+      wakeTime: data.wakeTime === undefined ? undefined : data.wakeTime,
+      sleepTime: data.sleepTime === undefined ? undefined : data.sleepTime,
+      stressLevel: data.stressLevel === undefined ? undefined : data.stressLevel,
+      sleepQuality: data.sleepQuality === undefined ? undefined : data.sleepQuality,
     },
   });
 }

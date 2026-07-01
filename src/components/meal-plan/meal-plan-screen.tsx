@@ -2,15 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion, type Variants } from "motion/react";
-import { RefreshCw, Sparkles, Check, Plus } from "lucide-react";
+import { RefreshCw, Sparkles, Check, Plus, Clock, Pill, Lightbulb } from "lucide-react";
 import { MEALS } from "@/components/food-log/types";
 import { AnimatedNumber } from "@/components/ui/animated-number";
+
+type Ingredient = { name: string; grams: number };
 
 type PlanItem = {
   id: string;
   mealType: string;
   name: string;
   description: string | null;
+  timeOfDay: string | null;
+  ingredients: Ingredient[] | null;
   portionG: number | null;
   caloriesKcal: number;
   proteinG: number;
@@ -18,6 +22,8 @@ type PlanItem = {
   fatG: number;
   sortOrder: number;
 };
+
+type Supplement = { name: string; timing: string; reason: string };
 
 type Plan = {
   id: string;
@@ -27,6 +33,8 @@ type Plan = {
   targetProteinG: number;
   targetCarbsG: number;
   targetFatG: number;
+  dailyTip: string | null;
+  supplementPlan: Supplement[] | null;
   items: PlanItem[];
 };
 
@@ -327,6 +335,24 @@ export function MealPlanScreen() {
         </div>
       </motion.div>
 
+      {/* ── denný tip ── */}
+      {plan.dailyTip && (
+        <motion.div
+          variants={fade}
+          className="flex gap-3 rounded-card border border-accent/25 bg-accent/[0.07] p-4"
+        >
+          <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent/15 text-accent">
+            <Lightbulb className="h-4 w-4" strokeWidth={2} />
+          </div>
+          <div className="min-w-0">
+            <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-[0.05em] text-accent">
+              Tip na dnes
+            </p>
+            <p className="text-sm leading-relaxed text-fg">{plan.dailyTip}</p>
+          </div>
+        </motion.div>
+      )}
+
       {error && (
         <motion.p
           variants={fade}
@@ -344,7 +370,14 @@ export function MealPlanScreen() {
           <motion.div key={item.id} variants={fade} className="card overflow-hidden p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="label-caps">{MEAL_LABEL[item.mealType] ?? item.mealType}</p>
+                <div className="flex items-center gap-2">
+                  <p className="label-caps">{MEAL_LABEL[item.mealType] ?? item.mealType}</p>
+                  {item.timeOfDay && (
+                    <span className="flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-accent ring-1 ring-inset ring-accent/20">
+                      <Clock className="h-3 w-3" strokeWidth={2.5} /> {item.timeOfDay}
+                    </span>
+                  )}
+                </div>
                 <p className="mt-1 font-semibold leading-snug text-white">{item.name}</p>
               </div>
               {item.portionG != null && (
@@ -356,6 +389,16 @@ export function MealPlanScreen() {
 
             {item.description && (
               <p className="mt-1.5 text-sm leading-relaxed text-muted">{item.description}</p>
+            )}
+
+            {item.ingredients && item.ingredients.length > 0 && (
+              <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                {item.ingredients.map((g, gi) => (
+                  <span key={gi} className="text-muted">
+                    <span className="font-semibold tabular-nums text-fg">{Math.round(g.grams)} g</span> {g.name}
+                  </span>
+                ))}
+              </div>
             )}
 
             <div className="mt-3 flex items-center gap-4 border-t border-border/70 pt-3 text-xs">
@@ -402,6 +445,32 @@ export function MealPlanScreen() {
           </motion.div>
         );
       })}
+
+      {/* ── plán doplnkov na dnes ── */}
+      {plan.supplementPlan && plan.supplementPlan.length > 0 && (
+        <motion.div variants={fade} className="card space-y-3 p-4">
+          <div className="flex items-center gap-2">
+            <Pill className="h-4 w-4 text-accent" strokeWidth={1.75} />
+            <h3 className="font-semibold text-white">Doplnky na dnes</h3>
+          </div>
+          <div className="space-y-2.5">
+            {plan.supplementPlan.map((s, si) => (
+              <div key={si} className="flex gap-3">
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-fg">
+                    {s.name}
+                    <span className="ml-2 rounded-full bg-surface-3 px-2 py-0.5 text-[11px] font-normal tabular-nums text-muted">
+                      {s.timing}
+                    </span>
+                  </p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-muted">{s.reason}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       <motion.button
         variants={fade}

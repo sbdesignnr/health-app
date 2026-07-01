@@ -7,10 +7,14 @@ import { getWeather } from "./weather";
 const MODEL = "claude-sonnet-4-6";
 const MEAL_TYPES = ["BREAKFAST", "MORNING_SNACK", "LUNCH", "AFTERNOON_SNACK", "DINNER"];
 
+export type AiIngredient = { name: string; grams: number };
+
 export type AiMealItem = {
   mealType: string;
   name: string;
   description: string;
+  timeOfDay: string;
+  ingredients: AiIngredient[];
   portionG: number;
   caloriesKcal: number;
   proteinG: number;
@@ -18,11 +22,46 @@ export type AiMealItem = {
   fatG: number;
 };
 
+export type AiSupplement = { name: string; timing: string; reason: string };
+
+export type AiPlanResult = {
+  items: AiMealItem[];
+  dailyTip: string;
+  supplementPlan: AiSupplement[];
+  context: string;
+  model: string;
+  targets: DailyTargets;
+};
+
+const INGREDIENT_SCHEMA = {
+  type: "object",
+  properties: {
+    name: { type: "string", description: "surovina po slovensky" },
+    grams: { type: "number", description: "gramáž tejto suroviny" },
+  },
+  required: ["name", "grams"],
+  additionalProperties: false,
+};
+
 const ITEM_PROPS = {
   mealType: { type: "string", enum: MEAL_TYPES },
   name: { type: "string", description: "názov jedla po slovensky" },
-  description: { type: "string", description: "stručný popis / hlavné suroviny" },
-  portionG: { type: "number", description: "veľkosť porcie v gramoch" },
+  description: {
+    type: "string",
+    description:
+      "chutný, ŠŤAVNATÝ popis vrátane omáčky/dresingu/korenín a spôsobu prípravy – nikdy nie suché jedlo",
+  },
+  timeOfDay: {
+    type: "string",
+    description:
+      "čas jedla vo formáte HH:MM podľa fyziológie (prvé jedlo min. 60 min po zobudení, rozostupy 2.5–3.5 h, posledné min. 2–3 h pred spaním)",
+  },
+  ingredients: {
+    type: "array",
+    items: INGREDIENT_SCHEMA,
+    description: "zoznam surovín s gramážou – aby bolo jasné koľko čoho dať",
+  },
+  portionG: { type: "number", description: "celková hmotnosť porcie v gramoch (≈ súčet surovín)" },
   caloriesKcal: { type: "number", description: "kcal pre túto porciu" },
   proteinG: { type: "number" },
   carbsG: { type: "number" },
@@ -32,12 +71,25 @@ const ITEM_REQUIRED = [
   "mealType",
   "name",
   "description",
+  "timeOfDay",
+  "ingredients",
   "portionG",
   "caloriesKcal",
   "proteinG",
   "carbsG",
   "fatG",
 ];
+
+const SUPP_SCHEMA = {
+  type: "object",
+  properties: {
+    name: { type: "string", description: "názov doplnku" },
+    timing: { type: "string", description: "kedy si ho vziať (napr. ráno s jedlom, po tréningu, pred spaním)" },
+    reason: { type: "string", description: "prečo v tomto čase – stručne" },
+  },
+  required: ["name", "timing", "reason"],
+  additionalProperties: false,
+};
 
 const PLAN_SCHEMA = {
   type: "object",
@@ -46,8 +98,18 @@ const PLAN_SCHEMA = {
       type: "array",
       items: { type: "object", properties: ITEM_PROPS, required: ITEM_REQUIRED, additionalProperties: false },
     },
+    dailyTip: {
+      type: "string",
+      description:
+        "jeden konkrétny dnešný odkaz na mieru (napr. „Dnes si daj kefír, lebo…“ alebo „Dnes uber sacharidy večer, lebo…“) – cielený na jeho stav, tréning a počasie",
+    },
+    supplementPlan: {
+      type: "array",
+      items: SUPP_SCHEMA,
+      description: "plán doplnkov na dnes – primárne z tých, ktoré užíva; kedy a prečo",
+    },
   },
-  required: ["meals"],
+  required: ["meals", "dailyTip", "supplementPlan"],
   additionalProperties: false,
 };
 
@@ -58,15 +120,40 @@ const SINGLE_SCHEMA = {
   additionalProperties: false,
 };
 
-const SYSTEM = `Si skúsený športový nutričný špecialista. Zostavuješ realistické denné jedálničky pre slovenského športovca (futbal + posilňovňa).
-Pravidlá:
+const SYSTEM = `Si špičkový športový nutričný špecialista a zároveň fyziológ. Zostavuješ realistický, CHUTNÝ denný jedálniček na mieru pre slovenského športovca (futbal + posilňovňa).
+
+VÝSTUP:
 - 5 jedál, každé práve raz: raňajky (BREAKFAST), desiata (MORNING_SNACK), obed (LUNCH), olovrant (AFTERNOON_SNACK), večera (DINNER).
-- Súčet kalórií a makier zo všetkých jedál musí sedieť na cieľové hodnoty (odchýlka do ~5 %).
-- Jedlá reálne, bežne dostupné na Slovensku, s presnými porciami v gramoch a makrami pre danú porciu.
-- NIKDY nezaraď nič z alergií. Rešpektuj typ stravy aj "nemám rád".
-- Obmieňaj oproti histórii posledných dní – neopakuj tie isté jedlá dookola.
-- Zohľadni tréning: pred/po tréningu sacharidovo bohatšie jedlo a dostatok bielkovín.
-- Zohľadni počasie: pri horúčave ľahšie, hydratujúce jedlá.
+- Ku KAŽDÉMU jedlu daj: presný čas (timeOfDay), rozpis surovín s gramážou (ingredients), celkovú porciu (portionG) a makrá pre porciu.
+- Súčet kalórií a makier zo VŠETKÝCH jedál musí sedieť na cieľové hodnoty (odchýlka do ~5 %).
+- Navyše vráť dailyTip (jeden konkrétny dnešný odkaz) a supplementPlan (kedy a prečo si vziať doplnky).
+
+ČASOVANIE JEDÁL – FYZIOLÓGIA (prísne dodrž):
+- Prvé jedlo NAJSKÔR ~60 minút po zobudení – telo hneď po spánku nedokáže dobre jesť. Nikdy skôr.
+- Rozostupy medzi jedlami 2.5–3.5 h.
+- Posledné jedlo minimálne 2–3 h pred spaním (kvalitný spánok a trávenie).
+- Okolo tréningu: 1–2 h pred tréningom ľahšie stráviteľné sacharidy + bielkovina; do 1–2 h po tréningu bielkovina + sacharidy na regeneráciu.
+- Ak nie je uvedený čas budenia/spánku, predpokladaj budenie 7:30 a spánok 23:00.
+
+CHUŤ (kľúčové – používateľ NEZNÁŠA suché jedlá a potrpí si na dobrom jedle):
+- Jedlá musia byť reálne chutné a ŠŤAVNATÉ. Vždy pridaj omáčku/dresing/zdravý tuk/koreniny, aby to nebolo suché.
+- Realistické, bežne dostupné na Slovensku, dá sa to reálne uvariť aj zjesť v danom množstve.
+
+ZDRAVIE NA MIERU (cielene zaraď potraviny podľa jeho problémov):
+- koža / vyrážky → omega-3, zinok, vitamín A a C, menej rafinovaného cukru a prípadne menej mliečneho.
+- vypadávanie vlasov → dostatok bielkovín, železo, biotín, zinok.
+- spánok / stres → magnézium, tryptofán (napr. tvaroh večer), banán; večer skôr komplexné sacharidy.
+- trávenie → fermentované (kefír, jogurt, kyslá kapusta), vláknina, dosť tekutín.
+- nízka energia → železo, komplexné sacharidy, vitamín B12.
+- Zohľadni psychický stav a kvalitu spánku.
+
+DOPLNKY:
+- V supplementPlan urči pre KAŽDÝ doplnok, ktorý užíva, ideálny čas a stručný dôvod (kreatín – kedykoľvek denne; omega-3 – k jedlu s tukom; magnézium – večer pred spaním; vitamín D3 – ráno k tuku; srvátkový proteín – po tréningu…).
+- Ak pre jeho problém niečo zjavne chýba, jemne to odporuč v dailyTip.
+
+OSTATNÉ:
+- NIKDY nezaraď nič z alergií. Rešpektuj typ stravy aj „nemám rád / nejem“.
+- Využívaj jeho obľúbené jedlá. Obmieňaj oproti histórii posledných dní – neopakuj tie isté jedlá dookola.
 - Odpovedaj VÝHRADNE cez štruktúrovanú schému (žiadny voľný text).`;
 
 const SK_DAYS = ["nedeľa", "pondelok", "utorok", "streda", "štvrtok", "piatok", "sobota"];
@@ -83,6 +170,15 @@ const EVENT_SK: Record<string, string> = {
   REST: "voľno",
   CUSTOM: "iné",
 };
+
+function ageFrom(birth: Date | null | undefined): number | null {
+  if (!birth) return null;
+  const now = new Date();
+  let a = now.getUTCFullYear() - birth.getUTCFullYear();
+  const m = now.getUTCMonth() - birth.getUTCMonth();
+  if (m < 0 || (m === 0 && now.getUTCDate() < birth.getUTCDate())) a--;
+  return a >= 0 && a < 130 ? a : null;
+}
 
 type GatheredContext = { contextString: string; targets: DailyTargets };
 
@@ -105,7 +201,7 @@ async function gatherContext(userId: string, dateStr: string): Promise<GatheredC
   });
   const recentNames = [...new Set(recentLogs.map((l) => l.food.name))].slice(0, 30);
 
-  // Reštaurácie + dnes platné menu (Fáza 7; teraz typicky prázdne).
+  // Reštaurácie + dnes platné menu.
   const dateAsDate = new Date(`${dateStr}T00:00:00Z`);
   const restaurants = await prisma.restaurant.findMany({
     where: { userId },
@@ -122,17 +218,31 @@ async function gatherContext(userId: string, dateStr: string): Promise<GatheredC
 
   const t = breakdown.targets;
   const dow = new Date(`${dateStr}T12:00:00Z`).getUTCDay();
+  const age = ageFrom(user?.birthDate ?? null);
 
   const lines: string[] = [];
   lines.push(`DÁTUM: ${dateStr} (${SK_DAYS[dow]})`);
   lines.push("");
   lines.push("PROFIL:");
   lines.push(
-    `- Výška: ${user?.heightCm ?? "?"} cm, Váha: ${user?.currentWeightKg ?? "?"} kg, Pohlavie: ${
+    `- Vek: ${age ?? "?"} r., Výška: ${user?.heightCm ?? "?"} cm, Váha: ${user?.currentWeightKg ?? "?"} kg, Pohlavie: ${
       user?.sex === "MALE" ? "muž" : user?.sex === "FEMALE" ? "žena" : "?"
     }`,
   );
   lines.push(`- Cieľ: ${GOAL_SK[breakdown.goalType] ?? breakdown.goalType}`);
+  lines.push("");
+  lines.push("REŽIM DŇA (podľa toho urči časy jedál):");
+  lines.push(`- Budenie: ${user?.wakeTime || "neuvedené (predpokladaj 7:30)"}, Spánok: ${user?.sleepTime || "neuvedené (predpokladaj 23:00)"}`);
+  lines.push(
+    `- Kvalita spánku (1–5): ${user?.sleepQuality ?? "?"}, Subjektívny stres (1–5): ${user?.stressLevel ?? "?"}`,
+  );
+  lines.push("");
+  lines.push("ZDRAVIE (rob jedlá cielene na tieto veci):");
+  lines.push(`- Problémy/zameranie: ${user?.healthConcerns?.length ? user.healthConcerns.join(", ") : "žiadne uvedené"}`);
+  lines.push(`- Poznámky (psychika/stav): ${user?.healthNotes?.trim() || "—"}`);
+  lines.push("");
+  lines.push("DOPLNKY (naplánuj v supplementPlan kedy a prečo):");
+  lines.push(`- Užíva: ${user?.supplements?.length ? user.supplements.join(", ") : "žiadne uvedené"}`);
   lines.push("");
   lines.push("DENNÉ CIELE (súčet jedál ich musí dosiahnuť):");
   lines.push(`- Kalórie: ${t.caloriesKcal} kcal`);
@@ -147,6 +257,7 @@ async function gatherContext(userId: string, dateStr: string): Promise<GatheredC
   lines.push(`- Typ: ${user?.dietType || "bez obmedzenia"}`);
   lines.push(`- Alergie (NIKDY nezaraď): ${user?.allergies?.length ? user.allergies.join(", ") : "žiadne"}`);
   lines.push(`- Nemám rád / nejem: ${user?.dislikes?.length ? user.dislikes.join(", ") : "—"}`);
+  lines.push(`- Obľúbené (rád zaradí): ${user?.likes?.length ? user.likes.join(", ") : "—"}`);
   lines.push("");
   lines.push("ROZVRH DNES (uprav timing a sacharidy okolo tréningu):");
   const trainings = events.filter((e) => e.type !== "REST");
@@ -191,33 +302,37 @@ async function gatherContext(userId: string, dateStr: string): Promise<GatheredC
   return { contextString: lines.join("\n"), targets: t };
 }
 
-function parseItem(text: string): AiMealItem {
-  return JSON.parse(text) as AiMealItem;
-}
-
 function firstText(content: { type: string; text?: string }[]): string {
   const block = content.find((b) => b.type === "text");
   if (!block || block.type !== "text" || !block.text) throw new Error("AI nevrátilo odpoveď.");
   return block.text;
 }
 
-export async function generatePlan(
-  userId: string,
-  dateStr: string,
-): Promise<{ items: AiMealItem[]; context: string; model: string; targets: DailyTargets }> {
+export async function generatePlan(userId: string, dateStr: string): Promise<AiPlanResult> {
   const { contextString, targets } = await gatherContext(userId, dateStr);
 
   const res = await anthropic.messages.create({
     model: MODEL,
-    max_tokens: 4096,
+    max_tokens: 8192,
     system: SYSTEM,
     output_config: { format: { type: "json_schema", schema: PLAN_SCHEMA } },
     messages: [{ role: "user", content: `${contextString}\n\nZostav jedálniček na tento deň.` }],
   });
 
   if (res.stop_reason === "refusal") throw new Error("AI odmietlo požiadavku.");
-  const parsed = JSON.parse(firstText(res.content)) as { meals: AiMealItem[] };
-  return { items: parsed.meals, context: contextString, model: MODEL, targets };
+  const parsed = JSON.parse(firstText(res.content)) as {
+    meals: AiMealItem[];
+    dailyTip: string;
+    supplementPlan: AiSupplement[];
+  };
+  return {
+    items: parsed.meals,
+    dailyTip: parsed.dailyTip,
+    supplementPlan: parsed.supplementPlan ?? [],
+    context: contextString,
+    model: MODEL,
+    targets,
+  };
 }
 
 export async function generateSingleMeal(
@@ -252,18 +367,18 @@ export async function generateSingleMeal(
       .join(", ")}).\n` +
     `Navrhni INÉ jedlo než "${avoidName}". Cieľ pre toto jedlo (zvyšok denného rozpočtu): ` +
     `~${Math.round(remaining.kcal)} kcal, ${Math.round(remaining.p)} g B, ${Math.round(remaining.c)} g S, ${Math.round(remaining.f)} g T.\n` +
-    `Vráť práve jedno jedlo typu ${mealType}.`;
+    `Dodrž časovanie aj rozpis surovín s gramážou. Vráť práve jedno jedlo typu ${mealType}.`;
 
   const res = await anthropic.messages.create({
     model: MODEL,
-    max_tokens: 1024,
+    max_tokens: 2048,
     system: SYSTEM,
     output_config: { format: { type: "json_schema", schema: SINGLE_SCHEMA } },
     messages: [{ role: "user", content: prompt }],
   });
 
   if (res.stop_reason === "refusal") throw new Error("AI odmietlo požiadavku.");
-  const item = parseItem(firstText(res.content));
+  const item = JSON.parse(firstText(res.content)) as AiMealItem;
   item.mealType = mealType; // poistka
   return item;
 }
