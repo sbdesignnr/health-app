@@ -8,6 +8,7 @@ export async function getProfile(userId: string) {
 export async function updateProfile(
   userId: string,
   data: {
+    name?: string | null;
     heightCm?: number | null;
     birthDate?: string | null;
     sex?: Sex | null;
@@ -20,6 +21,7 @@ export async function updateProfile(
   return prisma.user.update({
     where: { id: userId },
     data: {
+      name: data.name === undefined ? undefined : data.name,
       heightCm: data.heightCm ?? undefined,
       birthDate: data.birthDate ? new Date(data.birthDate) : undefined,
       sex: data.sex ?? undefined,

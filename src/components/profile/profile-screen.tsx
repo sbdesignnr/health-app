@@ -2,7 +2,9 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { motion, useReducedMotion, type Variants } from "motion/react";
+import { ChevronRight, Dumbbell, MapPin, Check } from "lucide-react";
+import { AnimatedNumber } from "@/components/ui/animated-number";
 
 type GoalType = "LOSE_FAT" | "GAIN_MUSCLE" | "MAINTAIN_PERFORMANCE" | "CUSTOM";
 type Activity = "SEDENTARY" | "LIGHT" | "MODERATE" | "ACTIVE" | "VERY_ACTIVE";
@@ -21,7 +23,16 @@ type Breakdown = {
 };
 
 const inp =
-  "w-full rounded-2xl border border-border bg-surface-2 px-4 py-3 text-fg outline-none transition focus:border-accent";
+  "w-full rounded-2xl border border-border bg-surface-2 px-4 py-3.5 text-fg outline-none transition placeholder:text-muted/70 focus:border-accent";
+
+const container: Variants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.05 } },
+};
+const fade: Variants = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } },
+};
 
 const ACTIVITY_OPTS: { key: Activity; label: string }[] = [
   { key: "SEDENTARY", label: "Sedavý" },
@@ -49,6 +60,12 @@ function pct(p: number): string {
   return `${v > 0 ? "+" : ""}${v} %`;
 }
 
+function pillCls(active: boolean): string {
+  return `rounded-full px-3.5 py-2 text-sm font-medium transition active:scale-95 ${
+    active ? "bg-accent text-accent-fg" : "bg-surface-2 text-muted ring-1 ring-inset ring-border"
+  }`;
+}
+
 function splitTags(s: string): string[] {
   return s
     .split(",")
@@ -58,8 +75,8 @@ function splitTags(s: string): string[] {
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="block space-y-1">
-      <span className="text-xs text-muted">{label}</span>
+    <label className="block space-y-1.5">
+      <span className="label-caps">{label}</span>
       {children}
     </label>
   );
@@ -67,10 +84,20 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
-    <div className={`flex justify-between ${strong ? "font-semibold" : "text-muted"}`}>
+    <div className={`flex justify-between ${strong ? "font-semibold text-white" : "text-muted"}`}>
       <span>{label}</span>
       <span className="tabular-nums">{value}</span>
     </div>
+  );
+}
+
+function MacroDot({ color, value, label }: { color: string; value: number; label: string }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
+      <span className="tabular-nums text-fg">{value} g</span>
+      <span className="text-muted">{label}</span>
+    </span>
   );
 }
 
@@ -79,38 +106,40 @@ function BreakdownCard({ breakdown }: { breakdown: Breakdown | null }) {
   const computed = breakdown?.complete && t && !t.isDefault;
 
   return (
-    <div className="rounded-card border border-border bg-surface p-5">
-      <div className="flex items-center justify-between">
-        <h2 className="font-medium">Tvoj denný cieľ</h2>
+    <div className="card relative overflow-hidden p-5">
+      <div className="pointer-events-none absolute -right-10 -top-12 h-36 w-36 rounded-full bg-accent/10 blur-3xl" />
+      <div className="relative flex items-center justify-between">
+        <p className="label-caps">Tvoj denný cieľ</p>
         {computed ? (
-          <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[11px] font-medium text-accent">vypočítané</span>
+          <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[11px] font-medium text-accent ring-1 ring-inset ring-accent/25">
+            vypočítané
+          </span>
         ) : (
-          <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-muted">predvolené</span>
+          <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-muted">
+            predvolené
+          </span>
         )}
       </div>
 
       {t && (
         <>
-          <div className="mt-3 text-3xl font-semibold tabular-nums">
-            {t.caloriesKcal}
-            <span className="ml-1 text-sm font-normal text-muted">kcal</span>
+          <div className="relative mt-2 flex items-baseline gap-1.5">
+            <AnimatedNumber
+              value={t.caloriesKcal}
+              className="text-4xl font-bold tracking-tight text-white tabular-nums"
+            />
+            <span className="text-sm text-muted">kcal</span>
           </div>
-          <div className="mt-1 flex gap-3 text-xs text-muted">
-            <span>
-              <span className="text-protein">{t.proteinG} g</span> biel.
-            </span>
-            <span>
-              <span className="text-carbs">{t.carbsG} g</span> sach.
-            </span>
-            <span>
-              <span className="text-fat">{t.fatG} g</span> tuky
-            </span>
+          <div className="relative mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+            <MacroDot color="var(--color-protein)" value={t.proteinG} label="biel." />
+            <MacroDot color="var(--color-carbs)" value={t.carbsG} label="sach." />
+            <MacroDot color="var(--color-fat)" value={t.fatG} label="tuky" />
           </div>
         </>
       )}
 
       {breakdown?.complete ? (
-        <div className="mt-4 space-y-1 border-t border-border pt-3 text-sm">
+        <div className="relative mt-4 space-y-1.5 border-t border-border pt-3 text-sm">
           <Row label="BMR (Mifflin–St Jeor)" value={`${breakdown.bmr} kcal`} />
           <Row label="+ denná aktivita (NEAT)" value={`${breakdown.baselineTdee} kcal`} />
           <Row label="+ tréningy (dnes)" value={`${breakdown.trainingKcal} kcal`} />
@@ -118,7 +147,7 @@ function BreakdownCard({ breakdown }: { breakdown: Breakdown | null }) {
           <Row label={`cieľ (${pct(breakdown.adjustmentPct)})`} value={`${breakdown.targets.caloriesKcal} kcal`} strong />
         </div>
       ) : (
-        <p className="mt-3 text-sm text-muted">
+        <p className="relative mt-3 rounded-xl bg-surface-2 px-3 py-2.5 text-sm text-muted">
           Doplň {breakdown?.missing.join(", ") || "telesné údaje"}
           {breakdown?.missing.includes("váha") ? " (váhu zapíšeš v Progrese)" : ""} pre reálny výpočet.
           Zatiaľ ukazujeme predvolený cieľ.
@@ -129,12 +158,14 @@ function BreakdownCard({ breakdown }: { breakdown: Breakdown | null }) {
 }
 
 export function ProfileScreen() {
+  const reduce = useReducedMotion();
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [breakdown, setBreakdown] = useState<Breakdown | null>(null);
 
+  const [name, setName] = useState("");
   const [heightCm, setHeightCm] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [sex, setSex] = useState<Sex | "">("");
@@ -151,6 +182,7 @@ export function ProfileScreen() {
         const data = await res.json();
         const p = data.profile;
         if (p) {
+          setName(p.name ?? "");
           setHeightCm(p.heightCm != null ? String(p.heightCm) : "");
           setBirthDate(p.birthDate ?? "");
           setSex(p.sex ?? "");
@@ -176,6 +208,7 @@ export function ProfileScreen() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          name: name.trim(),
           heightCm: heightCm ? Number(heightCm) : undefined,
           birthDate: birthDate || undefined,
           sex: sex || undefined,
@@ -199,37 +232,73 @@ export function ProfileScreen() {
   }
 
   if (loading) {
-    return <div className="h-40 animate-pulse rounded-card border border-border bg-surface" />;
+    return (
+      <div className="space-y-5">
+        <div className="card h-40 p-5">
+          <div className="skeleton h-3 w-24 rounded" />
+          <div className="skeleton mt-3 h-9 w-28 rounded" />
+        </div>
+        <div className="skeleton h-16 rounded-card" />
+        <div className="skeleton h-16 rounded-card" />
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-5">
-      <BreakdownCard breakdown={breakdown} />
+    <motion.div
+      className="space-y-5"
+      variants={container}
+      initial={reduce ? false : "hidden"}
+      animate="show"
+    >
+      <motion.div variants={fade}>
+        <BreakdownCard breakdown={breakdown} />
+      </motion.div>
 
-      <Link
-        href="/rozvrh"
-        className="flex items-center justify-between rounded-card border border-border bg-surface p-4 transition active:scale-[0.99]"
-      >
-        <div>
-          <p className="font-medium">Rozvrh tréningov</p>
-          <p className="text-xs text-muted">Futbal, posilňovňa, zápasy → výdaj do TDEE</p>
-        </div>
-        <ChevronRight className="h-5 w-5 text-muted" />
-      </Link>
+      <motion.div variants={fade}>
+        <Link
+          href="/rozvrh"
+          className="card flex items-center gap-3 p-4 transition active:scale-[0.99]"
+        >
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface-3 text-accent">
+            <Dumbbell className="h-5 w-5" strokeWidth={1.75} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-fg">Rozvrh tréningov</p>
+            <p className="text-xs text-muted">Futbal, posilňovňa, zápasy → výdaj do TDEE</p>
+          </div>
+          <ChevronRight className="h-5 w-5 shrink-0 text-muted" />
+        </Link>
+      </motion.div>
 
-      <Link
-        href="/restauracie"
-        className="flex items-center justify-between rounded-card border border-border bg-surface p-4 transition active:scale-[0.99]"
-      >
-        <div>
-          <p className="font-medium">Reštaurácie v Nitre</p>
-          <p className="text-xs text-muted">Obedové menu → návrhy obeda v AI jedálničku</p>
-        </div>
-        <ChevronRight className="h-5 w-5 text-muted" />
-      </Link>
+      <motion.div variants={fade}>
+        <Link
+          href="/restauracie"
+          className="card flex items-center gap-3 p-4 transition active:scale-[0.99]"
+        >
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface-3 text-accent">
+            <MapPin className="h-5 w-5" strokeWidth={1.75} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-fg">Reštaurácie v Nitre</p>
+            <p className="text-xs text-muted">Obedové menu → návrhy obeda v AI jedálničku</p>
+          </div>
+          <ChevronRight className="h-5 w-5 shrink-0 text-muted" />
+        </Link>
+      </motion.div>
 
-      <div className="space-y-4 rounded-card border border-border bg-surface p-5">
-        <h2 className="font-medium">Telesné údaje</h2>
+      <motion.div variants={fade} className="card space-y-4 p-5">
+        <h2 className="font-semibold text-white">Telesné údaje</h2>
+
+        <Field label="Meno">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="napr. Samuel"
+            maxLength={60}
+            className={inp}
+          />
+        </Field>
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Výška (cm)">
@@ -247,8 +316,8 @@ export function ProfileScreen() {
                 key={s}
                 type="button"
                 onClick={() => setSex(s)}
-                className={`flex-1 rounded-2xl py-3 text-sm font-medium transition ${
-                  sex === s ? "bg-accent text-accent-fg" : "border border-border bg-surface-2 text-muted"
+                className={`flex-1 rounded-2xl py-3 text-sm font-medium transition active:scale-[0.98] ${
+                  sex === s ? "bg-accent text-accent-fg" : "bg-surface-2 text-muted ring-1 ring-inset ring-border"
                 }`}
               >
                 {s === "MALE" ? "Muž" : "Žena"}
@@ -260,14 +329,7 @@ export function ProfileScreen() {
         <Field label="Denná aktivita (BEZ tréningov – tie sa rátajú zvlášť)">
           <div className="flex flex-wrap gap-1.5">
             {ACTIVITY_OPTS.map((a) => (
-              <button
-                key={a.key}
-                type="button"
-                onClick={() => setActivity(a.key)}
-                className={`rounded-full px-3 py-1.5 text-sm transition ${
-                  activity === a.key ? "bg-accent text-accent-fg" : "border border-border bg-surface-2 text-muted"
-                }`}
-              >
+              <button key={a.key} type="button" onClick={() => setActivity(a.key)} className={pillCls(activity === a.key)}>
                 {a.label}
               </button>
             ))}
@@ -277,25 +339,18 @@ export function ProfileScreen() {
         <Field label="Cieľ">
           <div className="flex flex-wrap gap-1.5">
             {GOAL_OPTS.map((g) => (
-              <button
-                key={g.key}
-                type="button"
-                onClick={() => setGoal(g.key)}
-                className={`rounded-full px-3 py-1.5 text-sm transition ${
-                  goal === g.key ? "bg-accent text-accent-fg" : "border border-border bg-surface-2 text-muted"
-                }`}
-              >
+              <button key={g.key} type="button" onClick={() => setGoal(g.key)} className={pillCls(goal === g.key)}>
                 {g.label}
               </button>
             ))}
           </div>
         </Field>
-      </div>
+      </motion.div>
 
-      <div className="space-y-4 rounded-card border border-border bg-surface p-5">
+      <motion.div variants={fade} className="card space-y-4 p-5">
         <div>
-          <h2 className="font-medium">Strava a preferencie</h2>
-          <p className="text-xs text-muted">Vstup pre AI jedálničky (Fáza 5)</p>
+          <h2 className="font-semibold text-white">Strava a preferencie</h2>
+          <p className="text-xs text-muted">Vstup pre AI jedálničky</p>
         </div>
 
         <Field label="Typ stravy">
@@ -305,9 +360,7 @@ export function ProfileScreen() {
                 key={d.key}
                 type="button"
                 onClick={() => setDietType(dietType === d.key ? "" : d.key)}
-                className={`rounded-full px-3 py-1.5 text-sm transition ${
-                  dietType === d.key ? "bg-accent text-accent-fg" : "border border-border bg-surface-2 text-muted"
-                }`}
+                className={pillCls(dietType === d.key)}
               >
                 {d.label}
               </button>
@@ -332,17 +385,35 @@ export function ProfileScreen() {
             className={inp}
           />
         </Field>
-      </div>
+      </motion.div>
 
-      {error && <p className="text-sm text-protein">{error}</p>}
+      {error && (
+        <motion.p
+          variants={fade}
+          className="rounded-xl bg-error/10 px-3 py-2 text-sm text-error ring-1 ring-inset ring-error/20"
+        >
+          {error}
+        </motion.p>
+      )}
 
-      <button
+      <motion.button
+        variants={fade}
         onClick={save}
         disabled={busy}
-        className="w-full rounded-2xl bg-accent py-3 font-semibold text-accent-fg transition active:scale-[0.99] disabled:opacity-60"
+        className={`flex w-full items-center justify-center gap-2 rounded-card py-3.5 font-semibold transition active:scale-[0.99] disabled:opacity-60 ${
+          saved ? "bg-accent/10 text-accent ring-1 ring-inset ring-accent/20" : "bg-accent text-accent-fg"
+        }`}
       >
-        {busy ? "Ukladám…" : saved ? "Uložené ✓" : "Uložiť profil"}
-      </button>
-    </div>
+        {saved ? (
+          <>
+            <Check className="h-[18px] w-[18px]" strokeWidth={2.5} /> Uložené
+          </>
+        ) : busy ? (
+          "Ukladám…"
+        ) : (
+          "Uložiť profil"
+        )}
+      </motion.button>
+    </motion.div>
   );
 }

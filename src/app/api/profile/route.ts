@@ -43,6 +43,7 @@ export async function PUT(request: Request) {
 
   const b = await request.json().catch(() => null);
   const data: {
+    name?: string | null;
     heightCm?: number;
     birthDate?: string;
     sex?: Sex;
@@ -52,6 +53,13 @@ export async function PUT(request: Request) {
     dislikes?: string[];
   } = {};
 
+  if (b?.name !== undefined) {
+    const n = typeof b.name === "string" ? b.name.trim() : "";
+    if (n.length > 60) {
+      return NextResponse.json({ error: "Meno je príliš dlhé (max 60 znakov)." }, { status: 400 });
+    }
+    data.name = n || null;
+  }
   if (b?.heightCm != null) {
     const h = Number(b.heightCm);
     if (!(h >= 100 && h <= 250)) {

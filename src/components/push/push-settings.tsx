@@ -109,11 +109,13 @@ export function PushSettings() {
   }
 
   return (
-    <div className="space-y-3 rounded-card border border-border bg-surface p-5">
-      <div className="flex items-center gap-2">
-        <Bell className="h-4 w-4 text-accent" />
+    <div className="card space-y-3 p-5">
+      <div className="flex items-center gap-3">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface-3 text-accent">
+          <Bell className="h-5 w-5" strokeWidth={1.75} />
+        </div>
         <div>
-          <h2 className="font-medium">Notifikácie</h2>
+          <h2 className="font-semibold text-white">Notifikácie</h2>
           <p className="text-xs text-muted">Pitný režim, jedlo okolo tréningu, počasie</p>
         </div>
       </div>
@@ -132,7 +134,7 @@ export function PushSettings() {
             <button
               onClick={enable}
               disabled={busy}
-              className="w-full rounded-2xl bg-accent py-3 font-semibold text-accent-fg transition active:scale-[0.99] disabled:opacity-60"
+              className="w-full rounded-card bg-accent py-3.5 font-semibold text-accent-fg transition active:scale-[0.99] disabled:opacity-60"
             >
               {busy ? "…" : "Zapnúť notifikácie"}
             </button>
@@ -141,14 +143,14 @@ export function PushSettings() {
               <button
                 onClick={test}
                 disabled={busy}
-                className="flex-1 rounded-2xl border border-border bg-surface-2 py-3 text-sm font-medium transition active:scale-[0.99] disabled:opacity-60"
+                className="flex-1 rounded-card border border-border bg-surface-2 py-3 text-sm font-medium transition active:scale-[0.99] disabled:opacity-60"
               >
                 Test notifikácie
               </button>
               <button
                 onClick={disable}
                 disabled={busy}
-                className="flex-1 rounded-2xl border border-border bg-surface-2 py-3 text-sm font-medium text-muted transition active:scale-[0.99] disabled:opacity-60"
+                className="flex-1 rounded-card border border-border bg-surface-2 py-3 text-sm font-medium text-muted transition active:scale-[0.99] disabled:opacity-60"
               >
                 Vypnúť
               </button>
