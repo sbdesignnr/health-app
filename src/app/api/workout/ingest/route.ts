@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { addWorkoutBurn, userIdByToken } from "@/lib/workout";
+import { upsertWatchBurn, userIdByToken } from "@/lib/workout";
 import { setSteps } from "@/lib/steps";
 
 // Verejný webhook pre iOS Skratku z Apple Watch. Autentifikácia vlastným tokenom
@@ -39,17 +39,9 @@ async function handle(request: Request) {
   const result: { ok: true; kcal?: number; steps?: number } = { ok: true };
 
   if (hasKcal) {
-    const durVal = pick("durationMin") ?? pick("duration");
-    const durationMin = durVal != null && Number.isFinite(Number(durVal)) ? Number(durVal) : null;
     const typeVal = pick("type") ?? pick("workoutType");
     const workoutType = typeVal != null ? String(typeVal) : null;
-    const burn = await addWorkoutBurn(userId, {
-      kcal,
-      durationMin,
-      workoutType,
-      source: "WATCH",
-      occurredAt,
-    });
+    const burn = await upsertWatchBurn(userId, { kcal, workoutType, occurredAt });
     result.kcal = burn.kcal;
   }
 

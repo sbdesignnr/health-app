@@ -81,6 +81,52 @@ export async function addWorkoutBurn(
   };
 }
 
+// Z Apple Watch prichádza DENNÁ aktívna energia (kumulatívna) → drž len JEDEN
+// záznam typu WATCH za deň a ber vyššiu hodnotu (nie sčítavať pri opakovaných sendoch).
+export async function upsertWatchBurn(
+  userId: string,
+  data: { kcal: number; workoutType?: string | null; occurredAt?: string | null },
+): Promise<BurnDTO> {
+  const when = data.occurredAt ? new Date(data.occurredAt) : new Date();
+  const valid = Number.isNaN(when.getTime()) ? new Date() : when;
+  const burnDate = dateOnly(bratislavaDate(valid));
+  const value = Math.max(0, Math.round(data.kcal));
+
+  const existing = await prisma.workoutBurn.findFirst({
+    where: { userId, source: "WATCH", burnDate },
+  });
+
+  const row = existing
+    ? await prisma.workoutBurn.update({
+        where: { id: existing.id },
+        data: {
+          kcal: Math.max(existing.kcal, value),
+          workoutType: data.workoutType?.trim() || existing.workoutType,
+          occurredAt: valid,
+        },
+      })
+    : await prisma.workoutBurn.create({
+        data: {
+          userId,
+          kcal: value,
+          workoutType: data.workoutType?.trim() || null,
+          durationMin: null,
+          source: "WATCH",
+          occurredAt: valid,
+          burnDate,
+        },
+      });
+
+  return {
+    id: row.id,
+    kcal: row.kcal,
+    workoutType: row.workoutType,
+    durationMin: row.durationMin,
+    source: row.source,
+    occurredAt: row.occurredAt.toISOString(),
+  };
+}
+
 // Súčet reálneho výdaja za deň, alebo null ak žiadny záznam (→ použije sa MET odhad).
 export async function getDayActualBurnKcal(userId: string, dateStr?: string): Promise<number | null> {
   const day = dateStr ?? bratislavaDate();
