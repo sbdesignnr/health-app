@@ -227,6 +227,7 @@ export function ProfileScreen() {
   const [seasonStartDate, setSeasonStartDate] = useState("");
   const [gymDaysPerWeek, setGymDaysPerWeek] = useState("");
   const [trainingExperience, setTrainingExperience] = useState("");
+  const [stepGoal, setStepGoal] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -259,6 +260,7 @@ export function ProfileScreen() {
           setSeasonStartDate(p.seasonStartDate ?? "");
           setGymDaysPerWeek(p.gymDaysPerWeek != null ? String(p.gymDaysPerWeek) : "");
           setTrainingExperience(p.trainingExperience ?? "");
+          setStepGoal(p.stepGoal != null ? String(p.stepGoal) : "");
         }
         setGoal((data.goalType as GoalType) ?? "MAINTAIN_PERFORMANCE");
         setBreakdown(data.breakdown ?? null);
@@ -302,6 +304,7 @@ export function ProfileScreen() {
           seasonStartDate: seasonStartDate || null,
           gymDaysPerWeek: gymDaysPerWeek ? Number(gymDaysPerWeek) : null,
           trainingExperience: trainingExperience || null,
+          stepGoal: stepGoal ? Number(stepGoal) : null,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Uloženie zlyhalo.");
@@ -522,6 +525,16 @@ export function ProfileScreen() {
             value={supplements}
             onChange={(e) => setSupplements(e.target.value)}
             placeholder="napr. Kreatín, Omega-3, Vitamín D3, Magnézium"
+            className={inp}
+          />
+        </Field>
+
+        <Field label="Denný cieľ krokov">
+          <input
+            inputMode="numeric"
+            value={stepGoal}
+            onChange={(e) => setStepGoal(e.target.value)}
+            placeholder="napr. 9000"
             className={inp}
           />
         </Field>

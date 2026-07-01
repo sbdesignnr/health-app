@@ -8,6 +8,7 @@ import { AddFoodSheet } from "./add-food-sheet";
 import { EditLogSheet } from "./edit-log-sheet";
 import { GreetingHeader } from "./greeting-header";
 import { HydrationBar } from "./hydration-bar";
+import { StepsCard } from "./steps-card";
 import { MEALS, type DayData, type LogItem, type MealKey } from "./types";
 
 type Weather = { current: { tempC: number; feelsLikeC: number; weatherCode: number } };
@@ -120,6 +121,10 @@ export function FoodLogScreen({ name }: { name: string | null }) {
           <HydrationBar hydration={hydration} />
         </motion.div>
       )}
+
+      <motion.div variants={fade}>
+        <StepsCard />
+      </motion.div>
 
       <motion.div variants={fade} className="space-y-3">
         {MEALS.map((m) => (

@@ -32,6 +32,7 @@ export async function updateProfile(
     seasonStartDate?: string | null;
     gymDaysPerWeek?: number | null;
     trainingExperience?: string | null;
+    stepGoal?: number | null;
   },
 ) {
   return prisma.user.update({
@@ -67,6 +68,7 @@ export async function updateProfile(
       gymDaysPerWeek: data.gymDaysPerWeek === undefined ? undefined : data.gymDaysPerWeek,
       trainingExperience:
         data.trainingExperience === undefined ? undefined : data.trainingExperience,
+      stepGoal: data.stepGoal === undefined ? undefined : data.stepGoal,
     },
   });
 }

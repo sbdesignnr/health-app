@@ -48,6 +48,7 @@ export async function GET() {
             : null,
           gymDaysPerWeek: user.gymDaysPerWeek,
           trainingExperience: user.trainingExperience,
+          stepGoal: user.stepGoal,
         }
       : null,
     goalType: goal?.type ?? "MAINTAIN_PERFORMANCE",
@@ -85,6 +86,7 @@ export async function PUT(request: Request) {
     seasonStartDate?: string | null;
     gymDaysPerWeek?: number | null;
     trainingExperience?: string | null;
+    stepGoal?: number | null;
   } = {};
 
   const cleanTags = (arr: unknown[]): string[] =>
@@ -177,6 +179,7 @@ export async function PUT(request: Request) {
   if (b?.matchMinutes !== undefined) data.matchMinutes = intOrNull(b.matchMinutes, 0, 200);
   if (b?.gymDaysPerWeek !== undefined) data.gymDaysPerWeek = intOrNull(b.gymDaysPerWeek, 0, 14);
   if (b?.seasonStartDate !== undefined) data.seasonStartDate = dateOrNull(b.seasonStartDate);
+  if (b?.stepGoal !== undefined) data.stepGoal = intOrNull(b.stepGoal, 0, 100000);
 
   await updateProfile(userId, data);
 

@@ -194,14 +194,27 @@ export function WorkoutSync() {
               Pridaj akciu, ktorá získa <span className="font-medium text-fg">aktívne kalórie</span> tréningu (Health / „Aktívna energia“).
             </li>
             <li>
-              Pridaj akciu <span className="font-medium text-fg">„Získať obsah URL“</span> → metóda{" "}
-              <span className="font-medium text-fg">GET</span> → vlož URL nižšie a na koniec pridaj{" "}
-              <span className="font-mono text-fg">&amp;kcal=</span> + premennú s kalóriami.
+              Pridaj akciu — hore do vyhľadávania napíš <span className="font-medium text-fg">URL</span> a vyber{" "}
+              <span className="font-medium text-fg">„Získať obsah URL“</span> (kategória{" "}
+              <span className="font-medium text-fg">Web</span>). Pozor: NIE „Otvoriť URL adresy“.
+            </li>
+            <li>
+              Do poľa URL vlož adresu nižšie, na koniec dopíš{" "}
+              <span className="font-mono text-fg">&amp;kcal=</span> a cez lištu nad klávesnicou vlož{" "}
+              <span className="font-medium text-fg">premennú</span> s kalóriami z kroku 2. Metóda ostane{" "}
+              <span className="font-medium text-fg">GET</span>.
             </li>
             <li>
               Vypni <span className="font-medium text-fg">„Pýtať sa pred spustením“</span>. Hotovo — po každom tréningu sa výdaj pošle sám.
             </li>
           </ol>
+
+          <p className="rounded-lg bg-bg px-3 py-2 leading-relaxed">
+            <span className="font-medium text-fg">Kroky zo Zdravia:</span> urob druhú automatizáciu{" "}
+            <span className="font-medium text-fg">„Denný čas“</span> (napr. 22:00) → akcia s dnešnými{" "}
+            <span className="font-medium text-fg">krokmi</span> → tá istá URL, len namiesto{" "}
+            <span className="font-mono text-fg">&amp;kcal=</span> daj <span className="font-mono text-fg">&amp;steps=</span>.
+          </p>
 
           <div className="flex items-center gap-2 rounded-xl border border-border bg-bg px-3 py-2">
             <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-fg">{url || "…"}</span>
