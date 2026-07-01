@@ -50,10 +50,29 @@ const fade: Variants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } },
 };
 
-function todayStr(): string {
+function dateForOffset(offset: number): string {
   const d = new Date();
+  d.setDate(d.getDate() + offset);
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+function DaySwitch({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  return (
+    <div className="flex gap-1 rounded-full bg-surface-2 p-1 text-sm">
+      {[0, 1].map((o) => (
+        <button
+          key={o}
+          onClick={() => onChange(o)}
+          className={`flex-1 rounded-full py-1.5 font-medium transition active:scale-[0.98] ${
+            value === o ? "bg-accent text-accent-fg" : "text-muted"
+          }`}
+        >
+          {o === 0 ? "Dnes" : "Zajtra"}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 /* ── hlavička obrazovky ── */
@@ -123,7 +142,8 @@ export function MealPlanScreen() {
   const [logged, setLogged] = useState<Set<string>>(new Set());
   const [recipeOpen, setRecipeOpen] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
-  const date = todayStr();
+  const [dayOffset, setDayOffset] = useState(0);
+  const date = dateForOffset(dayOffset);
 
   const toggleRecipe = (id: string) =>
     setRecipeOpen((s) => {
@@ -134,14 +154,21 @@ export function MealPlanScreen() {
     });
 
   useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    setPlan(null);
+    setLogged(new Set());
     (async () => {
       try {
         const res = await fetch(`/api/meal-plan?date=${date}`);
-        if (res.ok) setPlan((await res.json()).plan);
+        if (res.ok && alive) setPlan((await res.json()).plan);
       } finally {
-        setLoading(false);
+        if (alive) setLoading(false);
       }
     })();
+    return () => {
+      alive = false;
+    };
   }, [date]);
 
   async function generate() {
@@ -268,6 +295,10 @@ export function MealPlanScreen() {
           <ScreenHeader />
         </motion.div>
 
+        <motion.div variants={fade}>
+          <DaySwitch value={dayOffset} onChange={setDayOffset} />
+        </motion.div>
+
         <motion.div variants={fade} className="card relative overflow-hidden p-7 text-center">
           <div className="pointer-events-none absolute left-1/2 top-0 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/15 blur-3xl" />
           <div className="relative mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-accent/10 ring-1 ring-inset ring-accent/20">
@@ -295,7 +326,7 @@ export function MealPlanScreen() {
           className="flex w-full items-center justify-center gap-2 rounded-card bg-accent py-4 font-semibold text-accent-fg shadow-[0_0_24px_rgba(168,255,62,0.18)] transition active:scale-[0.98]"
         >
           <Sparkles className="h-4 w-4" strokeWidth={2} />
-          Vygenerovať plán na dnes
+          Vygenerovať plán na {dayOffset === 0 ? "dnes" : "zajtra"}
         </motion.button>
       </motion.div>
     );
@@ -320,6 +351,10 @@ export function MealPlanScreen() {
     >
       <motion.div variants={fade}>
         <ScreenHeader />
+      </motion.div>
+
+      <motion.div variants={fade}>
+        <DaySwitch value={dayOffset} onChange={setDayOffset} />
       </motion.div>
 
       {/* ── súhrnná karta ── */}

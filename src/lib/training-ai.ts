@@ -12,7 +12,26 @@ export type AiExercise = {
   notes: string;
 };
 export type AiDay = { title: string; focus: string; exercises: AiExercise[] };
-export type AiProgram = { phase: string; summary: string; days: AiDay[] };
+export type AiProgram = {
+  phase: string;
+  summary: string;
+  reviewAfterDays: number;
+  guidance: string[];
+  days: AiDay[];
+};
+
+const REVIEW_PROP = {
+  reviewAfterDays: {
+    type: "integer",
+    description: "po koľkých dňoch má hráč plán obnoviť (podľa fázy, typicky 14–28)",
+  },
+  guidance: {
+    type: "array",
+    items: { type: "string" },
+    description:
+      "odporúčania ako postupovať; ak je uvedená bolesť/zranenie: najpravdepodobnejšia príčina, ako sa k tomu postaviť, čím regenerovať a KEDY vyhľadať lekára (NIE je to lekárska diagnóza)",
+  },
+};
 
 const EX_PROPS = {
   name: { type: "string", description: "názov cviku po slovensky" },
@@ -39,12 +58,13 @@ const PROGRAM_SCHEMA = {
   properties: {
     phase: { type: "string", description: "aktuálna tréningová fáza, napr. 'Predsezóna – budovanie sily'" },
     summary: { type: "string", description: "2–3 vety: zameranie programu a ako pomáha futbalu v tejto fáze" },
+    ...REVIEW_PROP,
     days: {
       type: "array",
       items: { type: "object", properties: DAY_PROPS, required: DAY_REQUIRED, additionalProperties: false },
     },
   },
-  required: ["phase", "summary", "days"],
+  required: ["phase", "summary", "reviewAfterDays", "guidance", "days"],
   additionalProperties: false,
 };
 
@@ -61,6 +81,15 @@ PRAVIDLÁ:
 - Zaraď: viackĺbové cviky (drep, mŕtvy ťah, tlaky, príťahy), posteriorný reťazec (hamstringy, sedacie – dôležité pre šprint a prevenciu), unilaterálne cviky (výpady, bulharské drepy), výbušnosť/plyometria (pre futbal), core a prevenciu (členky, kolená).
 - Ku každému cviku: série, opakovania, intenzita (RPE alebo % 1RM), odpočinok a krátka poznámka.
 - Prispôsob náročnosť skúsenostiam (trainingExperience) a pozícii.
+
+AKTUÁLNY STAV / BOLESTI (ak je uvedený):
+- PRISPÔSOB tréning – vynechaj alebo uprav pohyby, ktoré dráždia bolestivé miesto; zaraď vhodné rehab/mobilitné cviky.
+- V "guidance" napíš: najpravdepodobnejšiu príčinu bolesti, ako sa k tomu postaviť (napr. odľahčenie, ľad, postupný návrat k záťaži), čím regenerovať, a KEDY vyhľadať lekára/fyzioterapeuta (opuch, ostrá bolesť, nezlepšuje sa). VŽDY dodaj, že to nie je lekárska diagnóza.
+
+PLATNOSŤ:
+- "reviewAfterDays" = po koľkých dňoch má plán obnoviť (podľa fázy, typicky 14–28; kratšie pri zranení alebo blízko zápasu).
+- "guidance" = aj bez zranenia daj 2–4 konkrétne odporúčania, ako počas týchto dní postupovať a kedy niečo zmeniť.
+
 - Názvy cvikov po slovensky. Odpovedaj VÝHRADNE cez štruktúrovanú schému.`;
 
 const SK_DAYS = ["nedeľa", "pondelok", "utorok", "streda", "štvrtok", "piatok", "sobota"];
@@ -120,7 +149,10 @@ async function gatherAthleteContext(userId: string): Promise<string> {
   lines.push(`- Ciele do sezóny: ${user?.seasonGoals?.trim() || "neuvedené"}`);
   lines.push(`- Silné stránky: ${user?.strengths?.trim() || "neuvedené"}`);
   lines.push(`- Slabiny na zlepšenie (cielene ich adresuj): ${user?.weaknesses?.trim() || "neuvedené"}`);
-  lines.push(`- Zranenia / obmedzenia (REŠPEKTUJ, neublíž, obchádzaj): ${user?.injuries?.trim() || "žiadne uvedené"}`);
+  lines.push(`- Dlhodobé zranenia / obmedzenia (REŠPEKTUJ, obchádzaj): ${user?.injuries?.trim() || "žiadne uvedené"}`);
+  lines.push(
+    `- AKTUÁLNY STAV / bolesti TERAZ (prispôsob tréning + poraď v guidance): ${user?.currentStatus?.trim() || "v poriadku, bez bolestí"}`,
+  );
   lines.push(`- Dostupné vybavenie: ${user?.gymEquipment?.trim() || "neuvedené (predpokladaj bežnú posilňovňu)"}`);
   lines.push("");
 
@@ -195,13 +227,23 @@ export type AiFootballPlan = {
   individualSessions: AiFootballSession[];
   recoveryTips: string[];
 };
-export type AiFootballResult = { phase: string; summary: string; plan: AiFootballPlan };
+export type AiFootballResult = {
+  phase: string;
+  summary: string;
+  reviewAfterDays: number;
+  guidance: string[];
+  plan: AiFootballPlan;
+};
 
 const DRILL_SCHEMA = {
   type: "object",
   properties: {
     name: { type: "string", description: "názov cvičenia po slovensky" },
-    detail: { type: "string", description: "ako to spraviť – série/opakovania/čas, prevedenie" },
+    detail: {
+      type: "string",
+      description:
+        "DETAILNÝ postup ako to spraviť sám: série/opakovania/čas, presné prevedenie krok po kroku, na čo si dať pozor a čo to trénuje (aby to hráč vedel spraviť aj bez trénera)",
+    },
   },
   required: ["name", "detail"],
   additionalProperties: false,
@@ -237,8 +279,17 @@ const FOOTBALL_SCHEMA = {
       items: { type: "string" },
       description: "regenerácia, mobilita, prevencia zranení",
     },
+    ...REVIEW_PROP,
   },
-  required: ["phase", "summary", "teamTrainingFocus", "individualSessions", "recoveryTips"],
+  required: [
+    "phase",
+    "summary",
+    "teamTrainingFocus",
+    "individualSessions",
+    "recoveryTips",
+    "reviewAfterDays",
+    "guidance",
+  ],
   additionalProperties: false,
 };
 
@@ -255,6 +306,16 @@ PRAVIDLÁ:
 - Všetko špecifické pre jeho POST (napr. obranca vs krídelník vs stredopoliar).
 - Predsezóna: budovanie kondície, objem, technika; blízko zápasu: sviežosť, menej objemu; sezóna: udržiavanie + doladenie detailov.
 - Nezaťažuj nohy ťažko tesne pred zápasom/spoločným tréningom.
+
+AKTUÁLNY STAV / BOLESTI (ak je uvedený):
+- PRISPÔSOB drily – vynechaj alebo uprav to, čo dráždi bolestivé miesto (napr. pri bolesti členka menej obratov s loptou, viac ľahkého behu ak to nebolí).
+- V "guidance" napíš najpravdepodobnejšiu príčinu, ako postupovať a čím regenerovať, a KEDY vyhľadať lekára/fyzioterapeuta (opuch, ostrá bolesť, nelepší sa). VŽDY dodaj, že to nie je lekárska diagnóza.
+
+PLATNOSŤ A ODPORÚČANIA:
+- "reviewAfterDays" = po koľkých dňoch plán obnoviť (podľa fázy, typicky 14–28; kratšie pri zranení/pred zápasom).
+- "guidance" = 2–4 konkrétne odporúčania ako postupovať počas tohto obdobia a kedy niečo zmeniť.
+- V drilloch daj DETAILNÝ postup, aby ich hráč vedel spraviť aj sám bez trénera.
+
 - Realistické, vykonateľné amatérom/poloprofesionálom. Po slovensky. Odpovedaj VÝHRADNE cez schému.`;
 
 export async function generateFootballPlan(
@@ -280,6 +341,8 @@ export async function generateFootballPlan(
   const parsed = JSON.parse(firstText(res.content)) as {
     phase: string;
     summary: string;
+    reviewAfterDays: number;
+    guidance: string[];
     teamTrainingFocus: string[];
     individualSessions: AiFootballSession[];
     recoveryTips: string[];
@@ -287,6 +350,8 @@ export async function generateFootballPlan(
   const result: AiFootballResult = {
     phase: parsed.phase,
     summary: parsed.summary,
+    reviewAfterDays: parsed.reviewAfterDays,
+    guidance: parsed.guidance ?? [],
     plan: {
       teamTrainingFocus: parsed.teamTrainingFocus ?? [],
       individualSessions: parsed.individualSessions ?? [],

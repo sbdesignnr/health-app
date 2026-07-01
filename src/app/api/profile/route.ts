@@ -53,6 +53,7 @@ export async function GET() {
           strengths: user.strengths,
           weaknesses: user.weaknesses,
           injuries: user.injuries,
+          currentStatus: user.currentStatus,
           gymEquipment: user.gymEquipment,
         }
       : null,
@@ -96,6 +97,7 @@ export async function PUT(request: Request) {
     strengths?: string | null;
     weaknesses?: string | null;
     injuries?: string | null;
+    currentStatus?: string | null;
     gymEquipment?: string | null;
   } = {};
 
@@ -194,6 +196,7 @@ export async function PUT(request: Request) {
   if (b?.strengths !== undefined) data.strengths = strOrNull(b.strengths, 400);
   if (b?.weaknesses !== undefined) data.weaknesses = strOrNull(b.weaknesses, 400);
   if (b?.injuries !== undefined) data.injuries = strOrNull(b.injuries, 400);
+  if (b?.currentStatus !== undefined) data.currentStatus = strOrNull(b.currentStatus, 600);
   if (b?.gymEquipment !== undefined) data.gymEquipment = strOrNull(b.gymEquipment, 300);
 
   await updateProfile(userId, data);

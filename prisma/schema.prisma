@@ -120,7 +120,8 @@ model User {
   seasonGoals        String?                             // ciele do nasledujúcej sezóny
   strengths          String?                             // silné stránky (futbal/kondícia)
   weaknesses         String?                             // slabiny na zlepšenie
-  injuries           String?                             // zranenia / obmedzenia (bezpečnosť tréningu)
+  injuries           String?                             // dlhodobé zranenia / obmedzenia
+  currentStatus      String?                             // aktuálny stav / bolesti (dynamické, mení sa)
   gymEquipment       String?                             // dostupné vybavenie (plná posilňovňa / činky doma...)
   workoutToken       String?       @unique               // tajný token pre webhook (Apple Watch skratka)
   stepGoal           Int?                                // denný cieľ krokov (default 9000)
@@ -405,6 +406,8 @@ model TrainingProgram {
   summary   String?                                      // stručný prehľad zamerania
   context   Json?                                        // vstup do AI (traceability)
   plan      Json?                                        // futbalový obsah (team focus, individ. sessiony, regenerácia)
+  guidance  Json?                                        // [odporúčania] – ako postupovať, stav/zranenie, regenerácia
+  reviewAfterDays Int?                                   // platnosť plánu (po koľkých dňoch obnoviť)
   active    Boolean      @default(true)
   createdAt DateTime     @default(now())
 

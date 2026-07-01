@@ -2,7 +2,30 @@
 
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion, type Variants } from "motion/react";
-import { Goal, Sparkles, RefreshCw, Users, Zap, HeartPulse } from "lucide-react";
+import {
+  Goal,
+  Sparkles,
+  RefreshCw,
+  Users,
+  Zap,
+  HeartPulse,
+  Video,
+  CalendarClock,
+  Lightbulb,
+} from "lucide-react";
+
+function ytLink(q: string): string {
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+}
+
+function planReview(createdAt: string, reviewAfterDays: number | null) {
+  if (!reviewAfterDays) return null;
+  const until = new Date(createdAt).getTime() + reviewAfterDays * 86400000;
+  const daysLeft = Math.ceil((until - Date.now()) / 86400000);
+  const p = (n: number) => String(n).padStart(2, "0");
+  const d = new Date(until);
+  return { daysLeft, overdue: daysLeft <= 0, untilStr: `${p(d.getDate())}.${p(d.getMonth() + 1)}.` };
+}
 
 type Drill = { name: string; detail: string };
 type Session = { day: string; title: string; focus: string; drills: Drill[] };
@@ -11,7 +34,16 @@ type FootballPlan = {
   individualSessions: Session[];
   recoveryTips: string[];
 };
-type Program = { id: string; phase: string; summary: string | null; model: string; plan: FootballPlan | null };
+type Program = {
+  id: string;
+  phase: string;
+  summary: string | null;
+  model: string;
+  createdAt: string;
+  reviewAfterDays: number | null;
+  guidance: string[] | null;
+  plan: FootballPlan | null;
+};
 
 const container: Variants = {
   hidden: {},
@@ -144,6 +176,7 @@ export function FootballScreen() {
   }
 
   const plan = program.plan;
+  const review = planReview(program.createdAt, program.reviewAfterDays);
 
   return (
     <motion.div
@@ -167,7 +200,38 @@ export function FootballScreen() {
         {program.summary && (
           <p className="relative mt-1.5 text-sm leading-relaxed text-muted">{program.summary}</p>
         )}
+        {review && (
+          <div
+            className={`relative mt-2.5 flex items-center gap-1.5 text-xs ${review.overdue ? "font-medium text-warn" : "text-muted"}`}
+          >
+            <CalendarClock className="h-3.5 w-3.5" strokeWidth={2} />
+            {review.overdue
+              ? "Čas obnoviť plán — prešla doba tejto fázy."
+              : `Plán platí ešte ~${review.daysLeft} dní (obnov po ${review.untilStr})`}
+          </div>
+        )}
       </motion.div>
+
+      {program.guidance && program.guidance.length > 0 && (
+        <motion.div variants={fade} className="card space-y-2.5 p-5">
+          <div className="flex items-center gap-2">
+            <Lightbulb className="h-4 w-4 text-accent" strokeWidth={1.75} />
+            <h2 className="font-semibold text-white">Ako postupovať</h2>
+          </div>
+          <ul className="space-y-2">
+            {program.guidance.map((g, i) => (
+              <li key={i} className="flex gap-2.5 text-sm">
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+                <span className="leading-relaxed text-fg">{g}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-[11px] leading-relaxed text-muted">
+            ⚕️ Rady k bolestiam sú všeobecné, nie lekárska diagnóza — pri zhoršení, opuchu či ostrej
+            bolesti navštív lekára/fyzioterapeuta.
+          </p>
+        </motion.div>
+      )}
 
       {error && (
         <motion.p
@@ -209,10 +273,20 @@ export function FootballScreen() {
                 {s.drills.map((d, di) => (
                   <div key={di} className="flex gap-2.5 text-sm">
                     <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
-                    <p className="leading-relaxed">
-                      <span className="font-semibold text-fg">{d.name}</span>
-                      <span className="text-muted"> — {d.detail}</span>
-                    </p>
+                    <div className="min-w-0">
+                      <p className="leading-relaxed">
+                        <span className="font-semibold text-fg">{d.name}</span>
+                        <span className="text-muted"> — {d.detail}</span>
+                      </p>
+                      <a
+                        href={ytLink(`${d.name} futbal cvičenie technika`)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-accent transition active:opacity-70"
+                      >
+                        <Video className="h-3 w-3" strokeWidth={2} /> Video
+                      </a>
+                    </div>
                   </div>
                 ))}
               </div>

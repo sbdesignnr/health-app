@@ -233,6 +233,7 @@ export function ProfileScreen() {
   const [weaknesses, setWeaknesses] = useState("");
   const [injuries, setInjuries] = useState("");
   const [gymEquipment, setGymEquipment] = useState("");
+  const [currentStatus, setCurrentStatus] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -271,6 +272,7 @@ export function ProfileScreen() {
           setWeaknesses(p.weaknesses ?? "");
           setInjuries(p.injuries ?? "");
           setGymEquipment(p.gymEquipment ?? "");
+          setCurrentStatus(p.currentStatus ?? "");
         }
         setGoal((data.goalType as GoalType) ?? "MAINTAIN_PERFORMANCE");
         setBreakdown(data.breakdown ?? null);
@@ -320,6 +322,7 @@ export function ProfileScreen() {
           weaknesses: weaknesses.trim() || null,
           injuries: injuries.trim() || null,
           gymEquipment: gymEquipment.trim() || null,
+          currentStatus: currentStatus.trim() || null,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Uloženie zlyhalo.");
@@ -659,6 +662,16 @@ export function ProfileScreen() {
           <h2 className="font-semibold text-white">Ciele a forma</h2>
           <p className="text-xs text-muted">Čím viac napíšeš, tým premakanejšie AI tréningy (gym + futbal)</p>
         </div>
+
+        <Field label="Aktuálny stav / bolesti (pravidelne aktualizuj — AI podľa toho upraví tréning)">
+          <textarea
+            value={currentStatus}
+            onChange={(e) => setCurrentStatus(e.target.value)}
+            rows={2}
+            placeholder="napr. 2 týždne som nebehal, trochu ma bolí členok pri práci s loptou — behať a chodiť môžem v pohode"
+            className={`${inp} resize-none`}
+          />
+        </Field>
 
         <Field label="Ciele do nasledujúcej sezóny">
           <textarea

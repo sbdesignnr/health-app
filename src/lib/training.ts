@@ -28,6 +28,8 @@ export type ProgramDTO = {
   createdAt: string;
   days: DayDTO[];
   plan: AiFootballPlan | null;
+  reviewAfterDays: number | null;
+  guidance: string[] | null;
 };
 
 export type ExerciseLogDTO = {
@@ -78,6 +80,8 @@ export async function getActiveProgram(
     summary: program.summary,
     createdAt: program.createdAt.toISOString(),
     plan: (program.plan as AiFootballPlan | null) ?? null,
+    reviewAfterDays: program.reviewAfterDays ?? null,
+    guidance: (program.guidance as string[] | null) ?? null,
     days: program.days.map((d) => ({
       id: d.id,
       dayIndex: d.dayIndex,
@@ -113,6 +117,8 @@ export async function generateAndSaveGymProgram(userId: string): Promise<Program
         model,
         phase: program.phase,
         summary: program.summary,
+        reviewAfterDays: program.reviewAfterDays,
+        guidance: program.guidance,
         context: { prompt: context },
         active: true,
         days: {
@@ -158,6 +164,8 @@ export async function generateAndSaveFootballProgram(userId: string): Promise<Pr
         model,
         phase: result.phase,
         summary: result.summary,
+        reviewAfterDays: result.reviewAfterDays,
+        guidance: result.guidance,
         context: { prompt: context },
         plan: result.plan,
         active: true,

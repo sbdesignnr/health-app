@@ -37,6 +37,7 @@ export async function updateProfile(
     strengths?: string | null;
     weaknesses?: string | null;
     injuries?: string | null;
+    currentStatus?: string | null;
     gymEquipment?: string | null;
   },
 ) {
@@ -78,6 +79,7 @@ export async function updateProfile(
       strengths: data.strengths === undefined ? undefined : data.strengths,
       weaknesses: data.weaknesses === undefined ? undefined : data.weaknesses,
       injuries: data.injuries === undefined ? undefined : data.injuries,
+      currentStatus: data.currentStatus === undefined ? undefined : data.currentStatus,
       gymEquipment: data.gymEquipment === undefined ? undefined : data.gymEquipment,
     },
   });

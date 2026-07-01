@@ -112,5 +112,25 @@ export async function buildDueNotifications(
     }
   }
 
+  // 6) Pripomienka obnoviť tréningový plán – raz denne o 9:00, keď prešla platnosť.
+  if (hour === 9) {
+    const programs = await prisma.trainingProgram.findMany({
+      where: { userId, active: true, reviewAfterDays: { not: null } },
+      select: { kind: true, reviewAfterDays: true, createdAt: true },
+    });
+    const overdue = programs.filter(
+      (p) => Date.now() >= p.createdAt.getTime() + (p.reviewAfterDays ?? 0) * 86400000,
+    );
+    if (overdue.length > 0) {
+      const kinds = overdue.map((p) => (p.kind === "GYM" ? "gym" : "futbalový")).join(" aj ");
+      out.push({
+        title: "Čas obnoviť tréningový plán 🔄",
+        body: `Tvoj ${kinds} plán prešiel svojou fázou. Otvor Fitness/Futbal a daj Regenerovať – AI ho prispôsobí aktuálnej fáze a tvojmu stavu.`,
+        url: overdue[0].kind === "GYM" ? "/fitness" : "/futbal",
+        tag: "plan-refresh",
+      });
+    }
+  }
+
   return out;
 }

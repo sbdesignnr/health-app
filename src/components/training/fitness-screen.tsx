@@ -2,8 +2,23 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion, type Variants } from "motion/react";
-import { Dumbbell, Sparkles, RefreshCw, ChevronDown, Timer } from "lucide-react";
+import { Dumbbell, Sparkles, RefreshCw, ChevronDown, Timer, Video, CalendarClock, Lightbulb } from "lucide-react";
 import { Sheet } from "@/components/ui/sheet";
+
+function ytLink(q: string): string {
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+}
+
+// Info o platnosti plánu: koľko dní ostáva a či je čas obnoviť.
+function planReview(createdAt: string, reviewAfterDays: number | null) {
+  if (!reviewAfterDays) return null;
+  const created = new Date(createdAt).getTime();
+  const until = created + reviewAfterDays * 86400000;
+  const daysLeft = Math.ceil((until - Date.now()) / 86400000);
+  const p = (n: number) => String(n).padStart(2, "0");
+  const d = new Date(until);
+  return { daysLeft, overdue: daysLeft <= 0, untilStr: `${p(d.getDate())}.${p(d.getMonth() + 1)}.` };
+}
 
 type Exercise = {
   id: string;
@@ -22,6 +37,9 @@ type Program = {
   phase: string;
   summary: string | null;
   model: string;
+  createdAt: string;
+  reviewAfterDays: number | null;
+  guidance: string[] | null;
   days: Day[];
 };
 type LogEntry = { id: string; weightKg: number; reps: number | null; note: string | null; loggedAt: string };
@@ -194,6 +212,14 @@ function ExerciseRow({ e, onLog }: { e: Exercise; onLog: (e: Exercise) => void }
           {e.restSec ? ` · odpočinok ${e.restSec}s` : ""}
         </p>
         {e.notes && <p className="mt-1 text-xs leading-relaxed text-muted">{e.notes}</p>}
+        <a
+          href={ytLink(`${e.name} cvik správna technika`)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-accent transition active:opacity-70"
+        >
+          <Video className="h-3 w-3" strokeWidth={2} /> Ako na to (video)
+        </a>
       </div>
       <button
         onClick={() => onLog(e)}
@@ -373,6 +399,8 @@ export function FitnessScreen() {
     );
   }
 
+  const review = planReview(program.createdAt, program.reviewAfterDays);
+
   return (
     <motion.div
       className="space-y-4 pb-4"
@@ -399,7 +427,38 @@ export function FitnessScreen() {
           <Timer className="h-3.5 w-3.5" strokeWidth={2} />
           {program.days.length} tréningov / týždeň
         </div>
+        {review && (
+          <div
+            className={`relative mt-2 flex items-center gap-1.5 text-xs ${review.overdue ? "font-medium text-warn" : "text-muted"}`}
+          >
+            <CalendarClock className="h-3.5 w-3.5" strokeWidth={2} />
+            {review.overdue
+              ? "Čas obnoviť plán — prešla doba tejto fázy."
+              : `Plán platí ešte ~${review.daysLeft} dní (obnov po ${review.untilStr})`}
+          </div>
+        )}
       </motion.div>
+
+      {program.guidance && program.guidance.length > 0 && (
+        <motion.div variants={fade} className="card space-y-2.5 p-5">
+          <div className="flex items-center gap-2">
+            <Lightbulb className="h-4 w-4 text-accent" strokeWidth={1.75} />
+            <h2 className="font-semibold text-white">Ako postupovať</h2>
+          </div>
+          <ul className="space-y-2">
+            {program.guidance.map((g, i) => (
+              <li key={i} className="flex gap-2.5 text-sm">
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+                <span className="leading-relaxed text-fg">{g}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-[11px] leading-relaxed text-muted">
+            ⚕️ Rady k bolestiam sú všeobecné, nie lekárska diagnóza — pri zhoršení, opuchu či ostrej
+            bolesti navštív lekára/fyzioterapeuta.
+          </p>
+        </motion.div>
+      )}
 
       {error && (
         <motion.p
