@@ -276,8 +276,16 @@ export function FitnessScreen() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ kind: "GYM" }),
       });
-      const d = await res.json();
-      if (!res.ok) throw new Error(d.error ?? "Generovanie zlyhalo.");
+      const text = await res.text();
+      let d: { program?: Program; error?: string } | null = null;
+      try {
+        d = text ? JSON.parse(text) : null;
+      } catch {
+        d = null;
+      }
+      if (!res.ok || !d?.program) {
+        throw new Error(d?.error ?? `Generovanie zlyhalo (${res.status}). Skús to o chvíľu znova.`);
+      }
       setProgram(d.program);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Chyba.");
