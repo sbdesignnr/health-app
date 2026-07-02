@@ -80,15 +80,46 @@ function fmtDate(iso: string): string {
   return `${Number(d)}.${Number(m)}.${y.slice(2)}`;
 }
 
+// Kompaktný graf progresu váhy cviku.
+function MiniWeightChart({ entries }: { entries: LogEntry[] }) {
+  const pts = [...entries].reverse();
+  if (pts.length < 2) return null;
+  const W = 300;
+  const H = 64;
+  const pad = 8;
+  const ys = pts.map((p) => p.weightKg);
+  const min = Math.min(...ys);
+  const max = Math.max(...ys);
+  const span = max - min || 1;
+  const x = (i: number) => pad + (i / (pts.length - 1)) * (W - 2 * pad);
+  const y = (v: number) => pad + (1 - (v - min) / span) * (H - 2 * pad);
+  const line = pts.map((p, i) => `${x(i)},${y(p.weightKg)}`).join(" ");
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Graf progresu cviku">
+      <polyline
+        points={line}
+        fill="none"
+        stroke="var(--color-accent)"
+        strokeWidth="2"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+      <circle cx={x(pts.length - 1)} cy={y(pts[pts.length - 1].weightKg)} r="3" fill="var(--color-accent)" />
+    </svg>
+  );
+}
+
 /* ── sheet na zápis váhy + história (progres) ── */
 function ExerciseLogSheet({
   exercise,
   onClose,
   onLogged,
+  onRenamed,
 }: {
   exercise: Exercise;
   onClose: () => void;
   onLogged: (name: string, weightKg: number) => void;
+  onRenamed: (id: string, name: string) => void;
 }) {
   const [weight, setWeight] = useState(exercise.lastWeightKg != null ? String(exercise.lastWeightKg) : "");
   const [reps, setReps] = useState("");
@@ -96,6 +127,33 @@ function ExerciseLogSheet({
   const [history, setHistory] = useState<LogEntry[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [subOpen, setSubOpen] = useState(false);
+  const [sub, setSub] = useState(exercise.name);
+  const [subBusy, setSubBusy] = useState(false);
+
+  async function substitute() {
+    const name = sub.trim();
+    if (!name || name === exercise.name) {
+      setSubOpen(false);
+      return;
+    }
+    setSubBusy(true);
+    setError("");
+    try {
+      const res = await fetch("/api/training/exercise", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ exerciseId: exercise.id, name }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Nahradenie zlyhalo.");
+      onRenamed(exercise.id, name);
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Chyba.");
+    } finally {
+      setSubBusy(false);
+    }
+  }
 
   useEffect(() => {
     (async () => {
@@ -193,6 +251,32 @@ function ExerciseLogSheet({
           {busy ? "Zapisujem…" : "Zapísať váhu"}
         </button>
 
+        <div>
+          <button
+            onClick={() => setSubOpen((v) => !v)}
+            className="text-xs font-medium text-muted transition active:opacity-70"
+          >
+            ⇄ Nahradiť iným cvikom (napr. Hack squat)
+          </button>
+          {subOpen && (
+            <div className="mt-2 flex gap-2">
+              <input
+                value={sub}
+                onChange={(e) => setSub(e.target.value)}
+                placeholder="Nový názov cviku"
+                className={inp}
+              />
+              <button
+                onClick={substitute}
+                disabled={subBusy}
+                className="shrink-0 rounded-2xl bg-surface-3 px-4 text-sm font-semibold text-white ring-1 ring-inset ring-border transition active:scale-95 disabled:opacity-60"
+              >
+                {subBusy ? "…" : "Nahradiť"}
+              </button>
+            </div>
+          )}
+        </div>
+
         {history.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -203,6 +287,7 @@ function ExerciseLogSheet({
                 </span>
               )}
             </div>
+            <MiniWeightChart entries={history} />
             <div className="divide-y divide-border overflow-hidden rounded-2xl bg-surface-2">
               {history.map((h) => (
                 <div key={h.id} className="flex items-center justify-between px-3.5 py-2.5 text-sm">
@@ -352,6 +437,20 @@ export function FitnessScreen() {
             days: p.days.map((d) => ({
               ...d,
               exercises: d.exercises.map((e) => (e.name === name ? { ...e, lastWeightKg: weightKg } : e)),
+            })),
+          }
+        : p,
+    );
+  }
+
+  function applyRenamed(id: string, newName: string) {
+    setProgram((p) =>
+      p
+        ? {
+            ...p,
+            days: p.days.map((d) => ({
+              ...d,
+              exercises: d.exercises.map((e) => (e.id === id ? { ...e, name: newName } : e)),
             })),
           }
         : p,
@@ -512,7 +611,12 @@ export function FitnessScreen() {
       </motion.button>
 
       {logEx && (
-        <ExerciseLogSheet exercise={logEx} onClose={() => setLogEx(null)} onLogged={applyLogged} />
+        <ExerciseLogSheet
+          exercise={logEx}
+          onClose={() => setLogEx(null)}
+          onLogged={applyLogged}
+          onRenamed={applyRenamed}
+        />
       )}
     </motion.div>
   );

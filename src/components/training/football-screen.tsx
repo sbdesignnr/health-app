@@ -237,6 +237,11 @@ export function FootballScreen() {
         )}
       </motion.div>
 
+      <motion.p variants={fade} className="px-1 text-xs text-muted">
+        💪 Toto je čistý <span className="text-fg">futbal</span>. Silový/gym tréning (s cvikmi a zápisom
+        váh) nájdeš v module <span className="text-fg">Fitness</span>.
+      </motion.p>
+
       {program.guidance && program.guidance.length > 0 && (
         <motion.div variants={fade} className="card space-y-2.5 p-5">
           <div className="flex items-center gap-2">

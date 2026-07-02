@@ -197,6 +197,21 @@ export async function generateAndSaveFootballProgram(
   return saved;
 }
 
+// Nahradí/premenuje cvik v pláne (napr. Drep → Hack squat). Overí vlastníctvo.
+export async function renameExercise(
+  userId: string,
+  exerciseId: string,
+  name: string,
+): Promise<boolean> {
+  const ex = await prisma.programExercise.findFirst({
+    where: { id: exerciseId },
+    include: { day: { include: { program: true } } },
+  });
+  if (!ex || ex.day.program.userId !== userId) return false;
+  await prisma.programExercise.update({ where: { id: exerciseId }, data: { name: name.trim() } });
+  return true;
+}
+
 export async function logExercise(
   userId: string,
   data: { exerciseName: string; weightKg: number; reps?: number | null; note?: string | null },

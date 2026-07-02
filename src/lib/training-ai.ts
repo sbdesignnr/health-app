@@ -192,6 +192,24 @@ async function gatherAthleteContext(userId: string, startDateStr?: string): Prom
     }
   }
 
+  // Posledné zapísané váhy z gymu – AI z nich progresuje záťaž.
+  const exLogs = await prisma.exerciseLog.findMany({
+    where: { userId },
+    orderBy: { loggedAt: "desc" },
+    take: 80,
+  });
+  const latestByName = new Map<string, { w: number; r: number | null }>();
+  for (const l of exLogs) {
+    if (!latestByName.has(l.exerciseName)) latestByName.set(l.exerciseName, { w: l.weightKg, r: l.reps });
+  }
+  if (latestByName.size > 0) {
+    lines.push("");
+    lines.push("POSLEDNÉ ZAPÍSANÉ VÁHY (nadviaž a mierne progresuj, ak zvláda; použi PRESNE tieto cviky):");
+    for (const [name, v] of latestByName) {
+      lines.push(`- ${name}: ${v.w} kg${v.r ? ` × ${v.r}` : ""}`);
+    }
+  }
+
   return lines.join("\n");
 }
 
@@ -321,6 +339,7 @@ AKTUÁLNY STAV / BOLESTI (ak je uvedený):
 ROZVRH (dôležité):
 - Futbalové TÍMOVÉ tréningy a zápasy z rozvrhu sú FIXNÉ – NEMEŇ ich. Individuálne tréningy rozvrhni na OSTATNÉ dni tak, aby si nebol unavený pred tímovým tréningom/zápasom.
 - "day" = KRÁTKY názov dňa (napr. "Utorok" alebo "Voľný deň"). Časovanie a detaily daj do "title"/"focus", NIE do "day".
+- NEPREDpisuj klasický posilňovací/gym tréning (drepy, mŕtvy ťah, tlaky s činkami…) – SILU a gym rieši SAMOSTATNÝ Fitness modul. Ty sa venuj len FUTBALU: technika, práca s loptou, šprinty, výbušnosť, agility, kondícia, regenerácia. Gym dni nechaj na Fitness modul.
 - Neuvádzaj konkrétne kalórie ani makrá – tie rieši samostatný jedálniček.
 
 PLATNOSŤ A ODPORÚČANIA:
