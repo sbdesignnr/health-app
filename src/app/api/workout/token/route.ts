@@ -13,8 +13,12 @@ export async function GET(request: Request) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const token = await getOrCreateToken(userId);
-  const url = `${originOf(request)}/api/workout/ingest?token=${token}`;
-  return NextResponse.json({ token, url });
+  const origin = originOf(request);
+  return NextResponse.json({
+    token,
+    url: `${origin}/api/workout/ingest?token=${token}`,
+    voiceUrl: `${origin}/api/logs/voice/ingest?token=${token}`,
+  });
 }
 
 export async function POST(request: Request) {
@@ -22,6 +26,10 @@ export async function POST(request: Request) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const token = await regenerateToken(userId);
-  const url = `${originOf(request)}/api/workout/ingest?token=${token}`;
-  return NextResponse.json({ token, url });
+  const origin = originOf(request);
+  return NextResponse.json({
+    token,
+    url: `${origin}/api/workout/ingest?token=${token}`,
+    voiceUrl: `${origin}/api/logs/voice/ingest?token=${token}`,
+  });
 }

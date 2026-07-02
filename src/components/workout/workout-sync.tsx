@@ -25,7 +25,8 @@ export function WorkoutSync() {
 
   const [setupOpen, setSetupOpen] = useState(false);
   const [url, setUrl] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [voiceUrl, setVoiceUrl] = useState("");
+  const [copied, setCopied] = useState("");
 
   async function loadBurns() {
     const res = await fetch("/api/workout");
@@ -42,7 +43,11 @@ export function WorkoutSync() {
 
   async function loadToken() {
     const res = await fetch("/api/workout/token");
-    if (res.ok) setUrl((await res.json()).url ?? "");
+    if (res.ok) {
+      const d = await res.json();
+      setUrl(d.url ?? "");
+      setVoiceUrl(d.voiceUrl ?? "");
+    }
   }
 
   async function openSetup() {
@@ -80,11 +85,11 @@ export function WorkoutSync() {
     await loadBurns();
   }
 
-  async function copyUrl() {
+  async function copy(which: "watch" | "voice", value: string) {
     try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
+      await navigator.clipboard.writeText(value);
+      setCopied(which);
+      setTimeout(() => setCopied(""), 1800);
     } catch {
       /* ignore */
     }
@@ -92,7 +97,11 @@ export function WorkoutSync() {
 
   async function regenerate() {
     const res = await fetch("/api/workout/token", { method: "POST" });
-    if (res.ok) setUrl((await res.json()).url ?? "");
+    if (res.ok) {
+      const d = await res.json();
+      setUrl(d.url ?? "");
+      setVoiceUrl(d.voiceUrl ?? "");
+    }
   }
 
   return (
@@ -220,16 +229,39 @@ export function WorkoutSync() {
           <div className="flex items-center gap-2 rounded-xl border border-border bg-bg px-3 py-2">
             <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-fg">{url || "…"}</span>
             <button
-              onClick={copyUrl}
+              onClick={() => copy("watch", url)}
               className="flex shrink-0 items-center gap-1 rounded-lg bg-surface-2 px-2 py-1 text-[11px] font-medium text-fg transition active:scale-95"
             >
-              {copied ? <Check className="h-3 w-3 text-accent" /> : <Copy className="h-3 w-3" />}
-              {copied ? "Skopírované" : "Kopírovať"}
+              {copied === "watch" ? <Check className="h-3 w-3 text-accent" /> : <Copy className="h-3 w-3" />}
+              {copied === "watch" ? "Skopírované" : "Kopírovať"}
             </button>
           </div>
 
+          <div className="space-y-2 border-t border-border pt-3">
+            <p className="text-sm font-semibold text-white">🎙️ Hlasový zápis jedla (Siri)</p>
+            <p>
+              Skratky → <span className="font-medium text-fg">+</span> → akcia{" "}
+              <span className="font-medium text-fg">„Diktovať text“</span> → potom{" "}
+              <span className="font-medium text-fg">„Získať obsah URL“</span> (metóda{" "}
+              <span className="font-medium text-fg">POST</span>, telo <span className="font-medium text-fg">JSON</span>{" "}
+              s poľom <span className="font-mono text-fg">text</span> = premenná „Diktovaný text“) na adresu
+              nižšie. Skratku pomenuj napr. <span className="font-medium text-fg">„HealthApp“</span> a povedz{" "}
+              <span className="font-medium text-fg">„Hey Siri, HealthApp“</span> → nadiktuj čo si jedol.
+            </p>
+            <div className="flex items-center gap-2 rounded-xl border border-border bg-bg px-3 py-2">
+              <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-fg">{voiceUrl || "…"}</span>
+              <button
+                onClick={() => copy("voice", voiceUrl)}
+                className="flex shrink-0 items-center gap-1 rounded-lg bg-surface-2 px-2 py-1 text-[11px] font-medium text-fg transition active:scale-95"
+              >
+                {copied === "voice" ? <Check className="h-3 w-3 text-accent" /> : <Copy className="h-3 w-3" />}
+                {copied === "voice" ? "Skopírované" : "Kopírovať"}
+              </button>
+            </div>
+          </div>
+
           <div className="flex items-center justify-between">
-            <p className="text-[11px]">Tento odkaz je tvoj tajný — nezdieľaj ho.</p>
+            <p className="text-[11px]">Tieto odkazy sú tvoje tajné — nezdieľaj ich.</p>
             <button
               onClick={regenerate}
               className="flex items-center gap-1 text-[11px] font-medium text-muted transition active:opacity-70"
