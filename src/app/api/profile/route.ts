@@ -55,6 +55,7 @@ export async function GET() {
           injuries: user.injuries,
           currentStatus: user.currentStatus,
           gymEquipment: user.gymEquipment,
+          foodRules: user.foodRules,
         }
       : null,
     goalType: goal?.type ?? "MAINTAIN_PERFORMANCE",
@@ -99,6 +100,7 @@ export async function PUT(request: Request) {
     injuries?: string | null;
     currentStatus?: string | null;
     gymEquipment?: string | null;
+    foodRules?: string | null;
   } = {};
 
   const cleanTags = (arr: unknown[]): string[] =>
@@ -198,6 +200,7 @@ export async function PUT(request: Request) {
   if (b?.injuries !== undefined) data.injuries = strOrNull(b.injuries, 400);
   if (b?.currentStatus !== undefined) data.currentStatus = strOrNull(b.currentStatus, 600);
   if (b?.gymEquipment !== undefined) data.gymEquipment = strOrNull(b.gymEquipment, 300);
+  if (b?.foodRules !== undefined) data.foodRules = strOrNull(b.foodRules, 1500);
 
   await updateProfile(userId, data);
 

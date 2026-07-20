@@ -1,4 +1,13 @@
-export type EventType = "FOOTBALL_TRAINING" | "GYM" | "MATCH" | "REST" | "CUSTOM";
+export type EventType =
+  | "FOOTBALL_TRAINING"
+  | "GYM"
+  | "MATCH"
+  | "REST"
+  | "ACTIVE_RECOVERY"
+  | "TENNIS"
+  | "SWIMMING"
+  | "RUNNING"
+  | "CUSTOM";
 export type Intensity = "LOW" | "MEDIUM" | "HIGH";
 
 export type SEvent = {
@@ -20,10 +29,24 @@ export const TYPE_LABEL: Record<EventType, string> = {
   GYM: "Posilňovňa",
   MATCH: "Zápas",
   REST: "Voľno",
+  ACTIVE_RECOVERY: "Aktívna regenerácia",
+  TENNIS: "Tenis",
+  SWIMMING: "Plávanie",
+  RUNNING: "Beh",
   CUSTOM: "Iné",
 };
 
-export const TYPE_OPTS: EventType[] = ["FOOTBALL_TRAINING", "GYM", "MATCH", "REST", "CUSTOM"];
+export const TYPE_OPTS: EventType[] = [
+  "FOOTBALL_TRAINING",
+  "GYM",
+  "MATCH",
+  "ACTIVE_RECOVERY",
+  "TENNIS",
+  "SWIMMING",
+  "RUNNING",
+  "REST",
+  "CUSTOM",
+];
 
 export const INTENSITY_LABEL: Record<Intensity, string> = {
   LOW: "Nízka",

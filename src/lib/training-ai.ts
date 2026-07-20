@@ -1,5 +1,8 @@
 import { anthropic } from "./anthropic";
 import { prisma } from "./prisma";
+import { TRAINING_KNOWLEDGE } from "./expert-knowledge";
+import { getWeekLoad, weekSummaryForAi } from "./weekly-load";
+import { checkinSummary, getCheckin } from "./checkin";
 
 const MODEL = "claude-sonnet-4-6";
 
@@ -93,7 +96,9 @@ PLATNOSŤ:
 - "reviewAfterDays" = po koľkých dňoch má plán obnoviť (podľa fázy, typicky 14–28; kratšie pri zranení alebo blízko zápasu).
 - "guidance" = aj bez zranenia daj 2–4 konkrétne odporúčania, ako počas týchto dní postupovať a kedy niečo zmeniť.
 
-- Názvy cvikov po slovensky. Odpovedaj VÝHRADNE cez štruktúrovanú schému.`;
+- Názvy cvikov po slovensky. Odpovedaj VÝHRADNE cez štruktúrovanú schému.
+
+${TRAINING_KNOWLEDGE}`;
 
 const SK_DAYS = ["nedeľa", "pondelok", "utorok", "streda", "štvrtok", "piatok", "sobota"];
 const GOAL_SK: Record<string, string> = {
@@ -191,6 +196,19 @@ async function gatherAthleteContext(userId: string, startDateStr?: string): Prom
       lines.push(`- ${e.date!.toISOString().slice(0, 10)}: ${e.title || "zápas"}`);
     }
   }
+
+  // ── Fáza 12: týždenná záťaž + ranný check-in ──
+  const [week, checkin] = await Promise.all([
+    getWeekLoad(userId, start),
+    getCheckin(userId, todayStr),
+  ]);
+  lines.push("");
+  lines.push(weekSummaryForAi(week));
+  lines.push("");
+  lines.push(`RANNÝ CHECK-IN: ${checkinSummary(checkin)}`);
+  lines.push(
+    "Ak sú varovania alebo je check-in slabý (energia/spánok ≤ 2 alebo únava ≥ 4), ZNÍŽ objem a zaraď regeneráciu.",
+  );
 
   // Posledné zapísané váhy z gymu – AI z nich progresuje záťaž.
   const exLogs = await prisma.exerciseLog.findMany({
@@ -347,7 +365,9 @@ PLATNOSŤ A ODPORÚČANIA:
 - "guidance" = 2–4 konkrétne odporúčania ako postupovať počas tohto obdobia a kedy niečo zmeniť.
 - V drilloch daj DETAILNÝ postup, aby ich hráč vedel spraviť aj sám bez trénera.
 
-- Realistické, vykonateľné amatérom/poloprofesionálom. Po slovensky. Odpovedaj VÝHRADNE cez schému.`;
+- Realistické, vykonateľné amatérom/poloprofesionálom. Po slovensky. Odpovedaj VÝHRADNE cez schému.
+
+${TRAINING_KNOWLEDGE}`;
 
 export async function generateFootballPlan(
   userId: string,

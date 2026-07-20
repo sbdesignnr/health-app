@@ -52,6 +52,10 @@ enum EventType {
   GYM
   MATCH
   REST
+  ACTIVE_RECOVERY
+  TENNIS
+  SWIMMING
+  RUNNING
   CUSTOM
 }
 
@@ -125,6 +129,7 @@ model User {
   gymEquipment       String?                             // dostupné vybavenie (plná posilňovňa / činky doma...)
   workoutToken       String?       @unique               // tajný token pre webhook (Apple Watch skratka)
   stepGoal           Int?                                // denný cieľ krokov (default 9000)
+  foodRules          String?                             // pravidlá nákupu/rotácie (obchody, rozpočet, cheat meal)
 
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @default(now()) @updatedAt
@@ -143,6 +148,8 @@ model User {
   exerciseLogs      ExerciseLog[]
   workoutBurns      WorkoutBurn[]
   stepCounts        StepCount[]
+  favoriteMeals     FavoriteMeal[]
+  checkins          DailyCheckin[]
 }
 
 // ── GOALS (história) ─────────────────────────────────────
@@ -239,6 +246,7 @@ model ScheduleEvent {
   date                 DateTime? @db.Date                // pre jednorazové / výnimky
   startTime            String?                           // "HH:MM"
   durationMin          Int?
+  rpe                  Int?                              // 1–10 vnímaná náročnosť (weekly load)
   estimatedCalorieBurn Int?                              // net kcal (MET formula)
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @default(now()) @updatedAt
@@ -482,6 +490,48 @@ model WorkoutBurn {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, burnDate])
+}
+
+// ── OBĽÚBENÉ JEDLÁ (rotačná databáza pre jedálniček) ─────
+model FavoriteMeal {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @db.Uuid
+  name         String
+  mealTypes    String[] @default([])                     // BREAKFAST, LUNCH, DINNER, SNACK
+  ingredients  Json?                                     // [{ name, grams, shop? }]
+  recipe       Json?                                     // [krok1, krok2, ...]
+  portionG     Float?
+  caloriesKcal Float
+  proteinG     Float
+  carbsG       Float
+  fatG         Float
+  prepMinutes  Int?
+  priceEur     Float?
+  maxPerWeek   Int?                                      // napr. halušky 1×, cheat meal 1× za 2 týždne
+  note         String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, active])
+}
+
+// ── RANNÝ CHECK-IN ───────────────────────────────────────
+model DailyCheckin {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @db.Uuid
+  date           DateTime @db.Date
+  energy         Int                                     // 1–5
+  sleepQuality   Int                                     // 1–5
+  muscleFatigue  Int                                     // 1–5 (5 = veľmi unavené)
+  note           String?
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
 }
 
 model StepCount {

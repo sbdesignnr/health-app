@@ -3,6 +3,10 @@ import { prisma } from "./prisma";
 import { getEnergyBreakdown, type DailyTargets } from "./goals";
 import { getDayEvents } from "./schedule";
 import { getWeather } from "./weather";
+import { NUTRITION_KNOWLEDGE } from "./expert-knowledge";
+import { listFavorites, recentMealCounts } from "./favorites";
+import { checkinSummary, getCheckin } from "./checkin";
+import { getWeekLoad, TYPE_LABEL_SK } from "./weekly-load";
 
 const MODEL = "claude-sonnet-4-6";
 const MEAL_TYPES = ["BREAKFAST", "MORNING_SNACK", "LUNCH", "AFTERNOON_SNACK", "DINNER"];
@@ -158,9 +162,19 @@ DOPLNKY:
 - V supplementPlan urči pre KAŽDÝ doplnok, ktorý užíva, ideálny čas a stručný dôvod (kreatín – kedykoľvek denne; omega-3 – k jedlu s tukom; magnézium – večer pred spaním; vitamín D3 – ráno k tuku; srvátkový proteín – po tréningu…).
 - Ak pre jeho problém niečo zjavne chýba, jemne to odporuč v dailyTip.
 
+ROTÁCIA A OBĽÚBENÉ JEDLÁ (KĽÚČOVÉ PRAVIDLO):
+- Jedálniček zostav VÝHRADNE z jeho OBĽÚBENÝCH JEDÁL uvedených v kontexte (vrátane smoothie). NEVYMÝŠĽAJ nové jedlá mimo zoznamu.
+- Pole "name" musí byť PRESNÝ názov obľúbeného jedla (kvôli sledovaniu rotácie).
+- ROTÁCIA: to isté jedlo nedávaj viac než 2× za týždeň. Rešpektuj limit „max za týždeň“, ak ho jedlo má.
+- PORCIE prispôsob dennej potrebe: tréningový deň = väčšie porcie sacharidov, voľný/regeneračný deň = menej sacharidov a viac zdravých tukov. Prepočítaj gramáže surovín aj makrá podľa upravenej porcie.
+- Ak má surovina uvedený obchod (napr. med → Yeme), spomeň to v popise jedla.
+- Prísne rešpektuj PRAVIDLÁ NÁKUPU A ROTÁCIE z kontextu (obchody, rozpočet, zakázané jedlá, cheat meal).
+- Ak je obľúbených jedál málo na pokrytie cieľa, radšej uprav porcie – nepridávaj cudzie jedlá.
+
+${NUTRITION_KNOWLEDGE}
+
 OSTATNÉ:
 - NIKDY nezaraď nič z alergií. Rešpektuj typ stravy aj „nemám rád / nejem“.
-- Využívaj jeho obľúbené jedlá. Obmieňaj oproti histórii posledných dní – neopakuj tie isté jedlá dookola.
 - Odpovedaj VÝHRADNE cez štruktúrovanú schému (žiadny voľný text).`;
 
 const SK_DAYS = ["nedeľa", "pondelok", "utorok", "streda", "štvrtok", "piatok", "sobota"];
@@ -305,6 +319,73 @@ async function gatherContext(userId: string, dateStr: string): Promise<GatheredC
     }
   }
   lines.push(menuLines.length ? menuLines.join("\n") : "- žiadne uložené menu");
+
+  // ── Fáza 12: obľúbené jedlá, rotácia, check-in, dnešná záťaž ──
+  const [favorites, recentCounts, checkin, week] = await Promise.all([
+    listFavorites(userId),
+    recentMealCounts(userId),
+    getCheckin(userId, dateStr),
+    getWeekLoad(userId, dateStr),
+  ]);
+
+  const today = week.days.find((d) => d.date === dateStr);
+  lines.push("");
+  lines.push("DNEŠNÁ ZÁŤAŽ (podľa nej periodizuj sacharidy a timing):");
+  if (!today || today.activities.length === 0) {
+    lines.push("- voľný / regeneračný deň → nižšie sacharidy, rovnaké bielkoviny, viac zdravých tukov");
+  } else {
+    for (const a of today.activities) {
+      lines.push(
+        `- ${TYPE_LABEL_SK[a.type] ?? a.type}${a.startTime ? ` o ${a.startTime}` : ""}, ${a.minutes} min, RPE ${a.rpe}`,
+      );
+    }
+    lines.push(`- denná záťaž (RPE × min): ${today.dayLoad}`);
+  }
+
+  // Zajtrajší zápas → dnes carb loading.
+  const tomorrow = week.days.find((d) => {
+    const t = new Date(`${dateStr}T12:00:00Z`);
+    t.setUTCDate(t.getUTCDate() + 1);
+    return d.date === t.toISOString().slice(0, 10);
+  });
+  if (tomorrow?.activities.some((a) => a.type === "MATCH")) {
+    lines.push("- ZAJTRA JE ZÁPAS → dnes CARB LOADING (6–8 g sacharidov/kg, nízky tuk a vláknina).");
+  }
+
+  lines.push("");
+  lines.push(`RANNÝ CHECK-IN: ${checkinSummary(checkin)}`);
+
+  lines.push("");
+  lines.push("PRAVIDLÁ NÁKUPU A ROTÁCIE (prísne dodrž):");
+  lines.push(user?.foodRules?.trim() || "- neuvedené");
+
+  lines.push("");
+  lines.push("OBĽÚBENÉ JEDLÁ – POUŽI VÝHRADNE TIETO (názov musí sedieť presne):");
+  if (favorites.length === 0) {
+    lines.push("- zatiaľ žiadne (použi bežné slovenské jedlá a odporuč doplniť obľúbené v Profile)");
+  } else {
+    for (const f of favorites.filter((x) => x.active)) {
+      const ing = (f.ingredients ?? [])
+        .map((i) => `${i.name} ${Math.round(i.grams)} g${i.shop ? ` [${i.shop}]` : ""}`)
+        .join(", ");
+      const used = recentCounts[f.name.toLowerCase()] ?? 0;
+      const limits = [
+        f.maxPerWeek ? `max ${f.maxPerWeek}×/týž.` : null,
+        used > 0 ? `za 7 dní použité ${used}×` : null,
+        f.note ?? null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      lines.push(
+        `- ${f.name} [${f.mealTypes.join("/") || "—"}] – ${Math.round(f.caloriesKcal)} kcal, B${Math.round(
+          f.proteinG,
+        )}/S${Math.round(f.carbsG)}/T${Math.round(f.fatG)}, porcia ${Math.round(f.portionG ?? 0)} g, ${
+          f.prepMinutes ?? "?"
+        } min, ${f.priceEur ?? "?"} €${limits ? ` — ${limits}` : ""}`,
+      );
+      if (ing) lines.push(`    suroviny: ${ing}`);
+    }
+  }
 
   return { contextString: lines.join("\n"), targets: t };
 }

@@ -28,6 +28,10 @@ const TYPE_COLOR: Record<EventType, string> = {
   GYM: "var(--color-fat)",
   MATCH: "var(--color-protein)",
   REST: "var(--color-muted)",
+  ACTIVE_RECOVERY: "var(--color-muted)",
+  TENNIS: "var(--color-carbs)",
+  SWIMMING: "var(--color-carbs)",
+  RUNNING: "var(--color-protein)",
   CUSTOM: "var(--color-carbs)",
 };
 

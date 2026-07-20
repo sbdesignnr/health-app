@@ -8,7 +8,10 @@ import { AddFoodSheet } from "./add-food-sheet";
 import { EditLogSheet } from "./edit-log-sheet";
 import { GreetingHeader } from "./greeting-header";
 import { HydrationBar } from "./hydration-bar";
+import Link from "next/link";
+import { CalendarRange, ChevronRight } from "lucide-react";
 import { StepsCard } from "./steps-card";
+import { MorningCheckin } from "@/components/checkin/morning-checkin";
 import { getCached, setCached } from "@/lib/client-cache";
 import { MEALS, type DayData, type LogItem, type MealKey } from "./types";
 
@@ -139,6 +142,19 @@ export function FoodLogScreen({ name }: { name: string | null }) {
         <StepsCard />
       </motion.div>
 
+      <motion.div variants={fade}>
+        <Link href="/tyzden" className="card flex items-center gap-3 p-4 transition active:scale-[0.99]">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface-3 text-accent">
+            <CalendarRange className="h-5 w-5" strokeWidth={1.75} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-fg">Týždenný plán</p>
+            <p className="text-xs text-muted">Záťaž týždňa, swap aktivít, varovania pred pretrénovaním</p>
+          </div>
+          <ChevronRight className="h-5 w-5 shrink-0 text-muted" />
+        </Link>
+      </motion.div>
+
       <motion.div variants={fade} className="space-y-3">
         {MEALS.map((m) => (
           <MealSection
@@ -175,6 +191,8 @@ export function FoodLogScreen({ name }: { name: string | null }) {
           }}
         />
       )}
+
+      <MorningCheckin />
     </motion.div>
   );
 }

@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -n \"return { contextString\\\\|REŠTAURÁCIE\\\\|const \\\\[user, breakdown\" src/lib/meal-plan-ai.ts)"
+    ]
+  }
+}

@@ -39,6 +39,7 @@ export async function updateProfile(
     injuries?: string | null;
     currentStatus?: string | null;
     gymEquipment?: string | null;
+    foodRules?: string | null;
   },
 ) {
   return prisma.user.update({
@@ -81,6 +82,7 @@ export async function updateProfile(
       injuries: data.injuries === undefined ? undefined : data.injuries,
       currentStatus: data.currentStatus === undefined ? undefined : data.currentStatus,
       gymEquipment: data.gymEquipment === undefined ? undefined : data.gymEquipment,
+      foodRules: data.foodRules === undefined ? undefined : data.foodRules,
     },
   });
 }
