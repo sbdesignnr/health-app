@@ -9,6 +9,7 @@ import { EditLogSheet } from "./edit-log-sheet";
 import { GreetingHeader } from "./greeting-header";
 import { HydrationBar } from "./hydration-bar";
 import { StepsCard } from "./steps-card";
+import { getCached, setCached } from "@/lib/client-cache";
 import { MEALS, type DayData, type LogItem, type MealKey } from "./types";
 
 type Weather = { current: { tempC: number; feelsLikeC: number; weatherCode: number } };
@@ -49,10 +50,17 @@ export function FoodLogScreen({ name }: { name: string | null }) {
     return { from: start.toISOString(), to: end.toISOString(), date };
   }, []);
 
-  const [data, setData] = useState<DayData | null>(null);
-  const [weather, setWeather] = useState<Weather | null>(null);
-  const [hydration, setHydration] = useState<Hydration | null>(null);
-  const [loading, setLoading] = useState(true);
+  const dayKey = `day:${range.date}`;
+  const wxKey = `wx:${range.date}`;
+
+  const [data, setData] = useState<DayData | null>(() => getCached<DayData>(dayKey) ?? null);
+  const [weather, setWeather] = useState<Weather | null>(
+    () => getCached<{ weather: Weather; hydration: Hydration }>(wxKey)?.weather ?? null,
+  );
+  const [hydration, setHydration] = useState<Hydration | null>(
+    () => getCached<{ weather: Weather; hydration: Hydration }>(wxKey)?.hydration ?? null,
+  );
+  const [loading, setLoading] = useState(() => !getCached<DayData>(dayKey));
   const [addMeal, setAddMeal] = useState<MealKey | null>(null);
   const [editItem, setEditItem] = useState<LogItem | null>(null);
 
@@ -60,9 +68,13 @@ export function FoodLogScreen({ name }: { name: string | null }) {
     const res = await fetch(
       `/api/logs?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}&date=${range.date}`,
     );
-    if (res.ok) setData(await res.json());
+    if (res.ok) {
+      const d = (await res.json()) as DayData;
+      setData(d);
+      setCached(dayKey, d);
+    }
     setLoading(false);
-  }, [range]);
+  }, [range, dayKey]);
 
   useEffect(() => {
     load();
@@ -75,9 +87,10 @@ export function FoodLogScreen({ name }: { name: string | null }) {
         const d = await res.json();
         setWeather(d.weather);
         setHydration(d.hydration);
+        setCached(wxKey, { weather: d.weather, hydration: d.hydration });
       }
     })();
-  }, [range.date]);
+  }, [range.date, wxKey]);
 
   async function saveEdit(id: string, patch: { portionG: number; mealType: MealKey }) {
     await fetch(`/api/logs/${id}`, {
@@ -95,10 +108,10 @@ export function FoodLogScreen({ name }: { name: string | null }) {
 
   if (loading || !data) return <DnesSkeleton />;
 
-  const container: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } };
+  const container: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.025 } } };
   const fade: Variants = {
-    hidden: { opacity: 0, y: 8 },
-    show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } },
+    hidden: { opacity: 0, y: 6 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] } },
   };
 
   return (

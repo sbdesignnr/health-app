@@ -293,7 +293,7 @@ export function InsightsSection() {
           className="space-y-3"
           initial={reduce ? false : "hidden"}
           animate="show"
-          variants={{ hidden: {}, show: { transition: { staggerChildren: 0.05 } } }}
+          variants={{ hidden: {}, show: { transition: { staggerChildren: 0.025 } } }}
         >
           {insights.map((ins) => (
             <motion.div

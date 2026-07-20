@@ -5,6 +5,7 @@ import { motion, useReducedMotion, type Variants } from "motion/react";
 import { RefreshCw, Sparkles, Check, Plus, Clock, Pill, Lightbulb, CookingPot, ChevronDown } from "lucide-react";
 import { MEALS } from "@/components/food-log/types";
 import { AnimatedNumber } from "@/components/ui/animated-number";
+import { getCached, setCached } from "@/lib/client-cache";
 
 type Ingredient = { name: string; grams: number };
 
@@ -43,11 +44,11 @@ const MEAL_LABEL: Record<string, string> = Object.fromEntries(MEALS.map((m) => [
 
 const container: Variants = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.05, delayChildren: 0.03 } },
+  show: { transition: { staggerChildren: 0.025, delayChildren: 0.02 } },
 };
 const fade: Variants = {
   hidden: { opacity: 0, y: 10 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] } },
 };
 
 function dateForOffset(offset: number): string {
@@ -135,15 +136,17 @@ function MacroChip({ color, value, letter }: { color: string; value: number; let
 
 export function MealPlanScreen() {
   const reduce = useReducedMotion();
-  const [plan, setPlan] = useState<Plan | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [dayOffset, setDayOffset] = useState(0);
+  const date = dateForOffset(dayOffset);
+  const initialCache = getCached<{ plan: Plan | null }>(`plan:${dateForOffset(0)}`);
+
+  const [plan, setPlan] = useState<Plan | null>(initialCache?.plan ?? null);
+  const [loading, setLoading] = useState(!initialCache);
   const [generating, setGenerating] = useState(false);
   const [busyItem, setBusyItem] = useState<string | null>(null);
   const [logged, setLogged] = useState<Set<string>>(new Set());
   const [recipeOpen, setRecipeOpen] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
-  const [dayOffset, setDayOffset] = useState(0);
-  const date = dateForOffset(dayOffset);
 
   const toggleRecipe = (id: string) =>
     setRecipeOpen((s) => {
@@ -155,13 +158,24 @@ export function MealPlanScreen() {
 
   useEffect(() => {
     let alive = true;
-    setLoading(true);
-    setPlan(null);
+    // Ak máme dáta v cache, zobraz ich OKAMŽITE a na pozadí načítaj čerstvé.
+    const cached = getCached<{ plan: Plan | null }>(`plan:${date}`);
+    if (cached) {
+      setPlan(cached.plan);
+      setLoading(false);
+    } else {
+      setLoading(true);
+      setPlan(null);
+    }
     setLogged(new Set());
     (async () => {
       try {
         const res = await fetch(`/api/meal-plan?date=${date}`);
-        if (res.ok && alive) setPlan((await res.json()).plan);
+        if (res.ok && alive) {
+          const d = await res.json();
+          setPlan(d.plan);
+          setCached(`plan:${date}`, { plan: d.plan });
+        }
       } finally {
         if (alive) setLoading(false);
       }
@@ -181,7 +195,9 @@ export function MealPlanScreen() {
         body: JSON.stringify({ date }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Generovanie zlyhalo.");
-      setPlan((await res.json()).plan);
+      const d = await res.json();
+      setPlan(d.plan);
+      setCached(`plan:${date}`, { plan: d.plan });
       setLogged(new Set());
     } catch (e) {
       setError(e instanceof Error ? e.message : "Chyba.");

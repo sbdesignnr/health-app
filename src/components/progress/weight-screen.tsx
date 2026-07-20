@@ -11,11 +11,11 @@ type Stats = { current: number | null; change7d: number | null; change30d: numbe
 
 const container: Variants = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.06 } },
+  show: { transition: { staggerChildren: 0.03 } },
 };
 const fade: Variants = {
   hidden: { opacity: 0, y: 10 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] } },
 };
 
 const oneDec = (n: number) =>

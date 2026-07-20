@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion, type Variants } from "motion/react";
+import { getCached, setCached } from "@/lib/client-cache";
 import {
   Goal,
   Sparkles,
@@ -70,11 +71,11 @@ type Program = {
 
 const container: Variants = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.05 } },
+  show: { transition: { staggerChildren: 0.025 } },
 };
 const fade: Variants = {
   hidden: { opacity: 0, y: 10 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] } },
 };
 
 function Bullets({ items }: { items: string[] }) {
@@ -92,8 +93,9 @@ function Bullets({ items }: { items: string[] }) {
 
 export function FootballScreen() {
   const reduce = useReducedMotion();
-  const [program, setProgram] = useState<Program | null>(null);
-  const [loading, setLoading] = useState(true);
+  const cachedFb = getCached<{ program: Program | null }>("training:FOOTBALL");
+  const [program, setProgram] = useState<Program | null>(cachedFb?.program ?? null);
+  const [loading, setLoading] = useState(!cachedFb);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const [startOffset, setStartOffset] = useState(0);
@@ -102,7 +104,11 @@ export function FootballScreen() {
     (async () => {
       try {
         const res = await fetch("/api/training?kind=FOOTBALL");
-        if (res.ok) setProgram((await res.json()).program);
+        if (res.ok) {
+          const d = await res.json();
+          setProgram(d.program);
+          setCached("training:FOOTBALL", { program: d.program });
+        }
       } finally {
         setLoading(false);
       }
@@ -129,6 +135,7 @@ export function FootballScreen() {
         throw new Error(d?.error ?? `Generovanie zlyhalo (${res.status}). Skús to o chvíľu znova.`);
       }
       setProgram(d.program);
+      setCached("training:FOOTBALL", { program: d.program });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Chyba.");
     } finally {

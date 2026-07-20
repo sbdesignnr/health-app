@@ -28,11 +28,11 @@ type Status = "idle" | "scanning" | "loading" | "result" | "notfound" | "error";
 
 const container: Variants = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.05, delayChildren: 0.03 } },
+  show: { transition: { staggerChildren: 0.025, delayChildren: 0.02 } },
 };
 const fade: Variants = {
   hidden: { opacity: 0, y: 10 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] } },
 };
 
 function defaultMeal(): MealKey {

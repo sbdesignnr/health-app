@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion, type Variants } from "motion/react";
 import { Dumbbell, Sparkles, RefreshCw, ChevronDown, Timer, Video, CalendarClock, Lightbulb } from "lucide-react";
 import { Sheet } from "@/components/ui/sheet";
+import { getCached, setCached } from "@/lib/client-cache";
 
 function ytLink(q: string): string {
   return `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
@@ -68,11 +69,11 @@ type LogEntry = { id: string; weightKg: number; reps: number | null; note: strin
 
 const container: Variants = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.05 } },
+  show: { transition: { staggerChildren: 0.025 } },
 };
 const fade: Variants = {
   hidden: { opacity: 0, y: 10 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] } },
 };
 
 function fmtDate(iso: string): string {
@@ -383,8 +384,9 @@ function DayCard({ day, onLog }: { day: Day; onLog: (e: Exercise) => void }) {
 
 export function FitnessScreen() {
   const reduce = useReducedMotion();
-  const [program, setProgram] = useState<Program | null>(null);
-  const [loading, setLoading] = useState(true);
+  const cachedGym = getCached<{ program: Program | null }>("training:GYM");
+  const [program, setProgram] = useState<Program | null>(cachedGym?.program ?? null);
+  const [loading, setLoading] = useState(!cachedGym);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const [logEx, setLogEx] = useState<Exercise | null>(null);
@@ -394,7 +396,11 @@ export function FitnessScreen() {
     (async () => {
       try {
         const res = await fetch("/api/training?kind=GYM");
-        if (res.ok) setProgram((await res.json()).program);
+        if (res.ok) {
+          const d = await res.json();
+          setProgram(d.program);
+          setCached("training:GYM", { program: d.program });
+        }
       } finally {
         setLoading(false);
       }
@@ -421,6 +427,7 @@ export function FitnessScreen() {
         throw new Error(d?.error ?? `Generovanie zlyhalo (${res.status}). Skús to o chvíľu znova.`);
       }
       setProgram(d.program);
+      setCached("training:GYM", { program: d.program });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Chyba.");
     } finally {
