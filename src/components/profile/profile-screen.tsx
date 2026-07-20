@@ -11,7 +11,9 @@ import {
   CalendarDays,
   Goal,
   UtensilsCrossed,
+  RotateCcw,
 } from "lucide-react";
+import { DEFAULT_FOOD_RULES } from "@/lib/food-rules";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 
 type GoalType = "LOSE_FAT" | "GAIN_MUSCLE" | "MAINTAIN_PERFORMANCE" | "CUSTOM";
@@ -223,6 +225,7 @@ export function ProfileScreen() {
   const [supplements, setSupplements] = useState("");
   const [healthConcerns, setHealthConcerns] = useState<string[]>([]);
   const [healthNotes, setHealthNotes] = useState("");
+  const [foodRules, setFoodRules] = useState("");
   const [wakeTime, setWakeTime] = useState("");
   const [sleepTime, setSleepTime] = useState("");
   const [stressLevel, setStressLevel] = useState<number | null>(null);
@@ -262,6 +265,7 @@ export function ProfileScreen() {
           setSupplements(Array.isArray(p.supplements) ? p.supplements.join(", ") : "");
           setHealthConcerns(Array.isArray(p.healthConcerns) ? p.healthConcerns : []);
           setHealthNotes(p.healthNotes ?? "");
+          setFoodRules(p.foodRules ?? "");
           setWakeTime(p.wakeTime ?? "");
           setSleepTime(p.sleepTime ?? "");
           setStressLevel(typeof p.stressLevel === "number" ? p.stressLevel : null);
@@ -312,6 +316,7 @@ export function ProfileScreen() {
           supplements: splitTags(supplements),
           healthConcerns,
           healthNotes: healthNotes.trim() || null,
+          foodRules: foodRules.trim() || null,
           wakeTime: wakeTime || null,
           sleepTime: sleepTime || null,
           stressLevel,
@@ -794,6 +799,34 @@ export function ProfileScreen() {
             className={inp}
           />
         </Field>
+      </motion.div>
+
+      <motion.div variants={fade} className="card space-y-4 p-5">
+        <div>
+          <h2 className="font-semibold text-white">Nákupné preferencie</h2>
+          <p className="text-xs text-muted">
+            Obchody, kvalitné substitúcie, rozpočet a nákupný vzorec — AI podľa toho skladá jedálniček
+            a pri každej surovine napíše, kde ju kúpiť
+          </p>
+        </div>
+
+        <Field label="Preferencie a pravidlá nákupu">
+          <textarea
+            value={foodRules}
+            onChange={(e) => setFoodRules(e.target.value)}
+            rows={14}
+            placeholder="Obchody, substitúcie, rozpočet, nákupný vzorec…"
+            className={`${inp} resize-none text-sm leading-relaxed`}
+          />
+        </Field>
+
+        <button
+          type="button"
+          onClick={() => setFoodRules(DEFAULT_FOOD_RULES)}
+          className="flex w-full items-center justify-center gap-2 rounded-card border border-border bg-surface-2/60 py-3 text-sm font-medium transition active:scale-[0.99]"
+        >
+          <RotateCcw className="h-4 w-4" strokeWidth={2} /> Načítať odporúčané preferencie
+        </button>
       </motion.div>
 
       {error && (

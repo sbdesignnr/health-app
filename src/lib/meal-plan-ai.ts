@@ -167,9 +167,16 @@ ROTÁCIA A OBĽÚBENÉ JEDLÁ (KĽÚČOVÉ PRAVIDLO):
 - Pole "name" musí byť PRESNÝ názov obľúbeného jedla (kvôli sledovaniu rotácie).
 - ROTÁCIA: to isté jedlo nedávaj viac než 2× za týždeň. Rešpektuj limit „max za týždeň“, ak ho jedlo má.
 - PORCIE prispôsob dennej potrebe: tréningový deň = väčšie porcie sacharidov, voľný/regeneračný deň = menej sacharidov a viac zdravých tukov. Prepočítaj gramáže surovín aj makrá podľa upravenej porcie.
-- Ak má surovina uvedený obchod (napr. med → Yeme), spomeň to v popise jedla.
-- Prísne rešpektuj PRAVIDLÁ NÁKUPU A ROTÁCIE z kontextu (obchody, rozpočet, zakázané jedlá, cheat meal).
 - Ak je obľúbených jedál málo na pokrytie cieľa, radšej uprav porcie – nepridávaj cudzie jedlá.
+
+NÁKUPNÉ PREFERENCIE (POVINNÉ PRI KAŽDOM JEDLE):
+- Pri KAŽDEJ surovine uveď v zátvorke, kde ju kúpiť: (Lidl), (Kaufland) alebo (Yeme). Poradie priority: Lidl → Kaufland → Yeme.
+- Ak ide o PRÉMIOVÚ surovinu z Yeme (med, farmárske vajcia, čokoláda 85 %+, Madona A2 mlieko), vždy krátko dopíš PREČO – napr. „farmárske vajcia (Yeme) – oranžovejší žĺtok, viac omega-3“.
+- Vždy odporúčaj KVALITNÉ VERZIE zo sekcie substitúcií v kontexte: slovenský lesný/kvetový med namiesto supermarketového, min. 85 % čokoláda namiesto mliečnej, olivový/kokosový extra virgin olej namiesto slnečnicového, Madona A2 plnotučné namiesto odtučneného mlieka.
+- Drž sa NÁKUPNÉHO VZORCA: základ (kuracie, zemiaky, ryža, vajcia, šalát) je vždy doma, rotuj len mäso a ryby (losos / hovädzí steak / bravčová panenka / kuracie).
+- Minimalizuj počet RÔZNYCH ingrediencií naprieč dňom – tie isté suroviny použi vo viacerých jedlách (menej plytvania, nižšie náklady).
+- Zmestiť sa MUSÍŠ do týždenného rozpočtu z kontextu (Lidl/Kaufland ~47–50 €, Yeme ~5–8 €). Ak by jedlo rozpočet prestrelilo, zvoľ lacnejšiu alternatívu zo zoznamu obľúbených jedál.
+- Prísne rešpektuj celé PRAVIDLÁ NÁKUPU A ROTÁCIE z kontextu (obchody, rozpočet, zakázané jedlá, cheat meal).
 
 ${NUTRITION_KNOWLEDGE}
 

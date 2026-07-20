@@ -2,7 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion, type Variants } from "motion/react";
-import { Plus, Trash2, Download, Clock, Euro, UtensilsCrossed } from "lucide-react";
+import Link from "next/link";
+import {
+  Plus,
+  Trash2,
+  Download,
+  Clock,
+  Euro,
+  UtensilsCrossed,
+  ShoppingBasket,
+  ChevronRight,
+} from "lucide-react";
 import { Sheet } from "@/components/ui/sheet";
 
 type Ingredient = { name: string; grams: number; shop?: string };
@@ -62,10 +72,10 @@ export function FavoritesScreen() {
   const reduce = useReducedMotion();
   const [items, setItems] = useState<Favorite[]>([]);
   const [rules, setRules] = useState("");
+
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [edit, setEdit] = useState<Favorite | Omit<Favorite, "id"> | null>(null);
-  const [savedRules, setSavedRules] = useState(false);
 
   async function load() {
     const [fRes, pRes] = await Promise.all([fetch("/api/favorites"), fetch("/api/profile")]);
@@ -87,21 +97,6 @@ export function FavoritesScreen() {
         setItems(d.favorites ?? []);
         await load();
       }
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function saveRules() {
-    setBusy(true);
-    try {
-      await fetch("/api/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ foodRules: rules }),
-      });
-      setSavedRules(true);
-      setTimeout(() => setSavedRules(false), 2000);
     } finally {
       setBusy(false);
     }
@@ -135,6 +130,8 @@ export function FavoritesScreen() {
       setBusy(false);
     }
   }
+
+  const rulesPreview = rules.trim() ? `${rules.trim().slice(0, 70).replace(/\s+/g, " ")}…` : "";
 
   if (loading) {
     return (
@@ -215,28 +212,20 @@ export function FavoritesScreen() {
         <Plus className="h-4 w-4" strokeWidth={2.4} /> Pridať jedlo
       </motion.button>
 
-      {/* pravidlá nákupu a rotácie */}
-      <motion.div variants={fade} className="card space-y-3 p-5">
-        <div>
-          <h2 className="font-semibold text-white">Pravidlá nákupu a rotácie</h2>
-          <p className="text-xs text-muted">Obchody, rozpočet, zakázané jedlá, cheat meal — AI to prísne dodrží</p>
-        </div>
-        <textarea
-          value={rules}
-          onChange={(e) => setRules(e.target.value)}
-          rows={7}
-          placeholder="napr. Lidl (základ), Kaufland (steak, losos), Yeme (med, vajcia, čokoláda 85 %)…"
-          className={`${inp} resize-none text-sm`}
-        />
-        <button
-          onClick={saveRules}
-          disabled={busy}
-          className={`w-full rounded-card py-3 text-sm font-semibold transition active:scale-[0.99] disabled:opacity-60 ${
-            savedRules ? "bg-accent/10 text-accent ring-1 ring-inset ring-accent/20" : "bg-accent text-accent-fg"
-          }`}
-        >
-          {savedRules ? "Uložené ✓" : "Uložiť pravidlá"}
-        </button>
+      {/* nákupné preferencie sa editujú v Profile (jeden zdroj pravdy) */}
+      <motion.div variants={fade}>
+        <Link href="/profil" className="card flex items-center gap-3 p-4 transition active:scale-[0.99]">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface-3 text-accent">
+            <ShoppingBasket className="h-5 w-5" strokeWidth={1.75} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-fg">Nákupné preferencie</p>
+            <p className="text-xs text-muted">
+              {rulesPreview || "Obchody, substitúcie, rozpočet a nákupný vzorec — uprav v Profile"}
+            </p>
+          </div>
+          <ChevronRight className="h-5 w-5 shrink-0 text-muted" />
+        </Link>
       </motion.div>
 
       {edit && (

@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { DEFAULT_FOOD_RULES } from "./food-rules";
 
 export type FavoriteIngredient = { name: string; grams: number; shop?: string };
 
@@ -321,14 +322,7 @@ export const DEFAULT_FAVORITES: FavoriteInput[] = [
   },
 ];
 
-export const DEFAULT_FOOD_RULES = `Obchody: Lidl (základ), Kaufland (steak, čerstvý losos), Yeme (med slovenský lesný, farmárske vajcia, čokoláda 85 %+).
-Rozpočet: 50–60 € týždenne.
-Vždy doma: kuracie, zemiaky, ryža, vajcia, šalát.
-Rotácia mäsa: losos / steak / bravčová panenka / kuracie – striedať.
-Zemiaky VŽDY v rúre s olivovým olejom (200 °C, 25 min) – nikdy vyprážané.
-NEZARAĎOVAŤ: hranolky z fritézy, vyprážaný syr (akné trigger).
-Palacinky so šľahačkou a nutellou = cheat meal, max 1× za 2 týždne.
-Cieľ: minimum rôznych ingrediencií – menej plytvania, nižšie náklady.`;
+export { DEFAULT_FOOD_RULES };
 
 function toDTO(m: {
   id: string;
