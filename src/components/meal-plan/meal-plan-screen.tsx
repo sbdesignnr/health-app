@@ -2,7 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion, type Variants } from "motion/react";
-import { RefreshCw, Sparkles, Check, Plus, Clock, Pill, Lightbulb, CookingPot, ChevronDown } from "lucide-react";
+import {
+  RefreshCw,
+  Sparkles,
+  Check,
+  Plus,
+  Clock,
+  Pill,
+  Lightbulb,
+  CookingPot,
+  ChevronDown,
+  ShoppingBasket,
+  ChevronRight,
+} from "lucide-react";
+import Link from "next/link";
 import { MEALS } from "@/components/food-log/types";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { getCached, setCached } from "@/lib/client-cache";
@@ -560,6 +573,21 @@ export function MealPlanScreen() {
           </div>
         </motion.div>
       )}
+
+      <motion.div variants={fade}>
+        <Link href="/nakup" className="card flex items-center gap-3 p-4 transition active:scale-[0.99]">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface-3 text-accent">
+            <ShoppingBasket className="h-5 w-5" strokeWidth={1.75} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-fg">Nákupný zoznam na týždeň</p>
+            <p className="text-xs text-muted">
+              Podľa obchodov · konkrétne produkty · odhad ceny oproti rozpočtu
+            </p>
+          </div>
+          <ChevronRight className="h-5 w-5 shrink-0 text-muted" />
+        </Link>
+      </motion.div>
 
       <motion.button
         variants={fade}

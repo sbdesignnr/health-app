@@ -2,7 +2,7 @@
 // Health Assistant – databázová schéma (Prisma 7, PostgreSQL/Supabase)
 
 generator client {
-  provider = "prisma-client"        // Prisma 7 – Rust-free klient
+  provider = "prisma-client" // Prisma 7 – Rust-free klient
   output   = "../src/generated/prisma"
 }
 
@@ -92,47 +92,47 @@ enum NotificationType {
 
 // ── USER & PROFILE ───────────────────────────────────────
 model User {
-  id              String        @id @db.Uuid             // = auth.users.id (Supabase)
+  id              String        @id @db.Uuid // = auth.users.id (Supabase)
   email           String        @unique
   name            String?
   heightCm        Int?
   birthDate       DateTime?     @db.Date
   sex             Sex?
   activityLevel   ActivityLevel @default(MODERATE)
-  currentWeightKg Float?                                 // denorm cache poslednej váhy
-  dietType        String?                                // napr. "omnivore", "vegetarian"
+  currentWeightKg Float? // denorm cache poslednej váhy
+  dietType        String? // napr. "omnivore", "vegetarian"
   allergies       String[]      @default([])
   dislikes        String[]      @default([])
-  likes           String[]      @default([])             // obľúbené jedlá
-  supplements     String[]      @default([])             // doplnky, ktoré užíva
-  healthConcerns  String[]      @default([])             // koža/vyrážky, vlasy, trávenie, spánok...
-  healthNotes     String?                                // voľné poznámky (psychika, stav)
-  wakeTime        String?                                // "07:00"
-  sleepTime       String?                                // "23:00"
-  stressLevel     Int?                                   // 1–5 (subjektívny stres)
-  sleepQuality    Int?                                   // 1–5 (kvalita spánku)
+  likes           String[]      @default([]) // obľúbené jedlá
+  supplements     String[]      @default([]) // doplnky, ktoré užíva
+  healthConcerns  String[]      @default([]) // koža/vyrážky, vlasy, trávenie, spánok...
+  healthNotes     String? // voľné poznámky (psychika, stav)
+  wakeTime        String? // "07:00"
+  sleepTime       String? // "23:00"
+  stressLevel     Int? // 1–5 (subjektívny stres)
+  sleepQuality    Int? // 1–5 (kvalita spánku)
 
   // ── športový (athlétsky) profil ──
-  footballLeague     String?                             // liga, napr. "III. liga"
-  footballPosition   String?                             // post, napr. "stredný obranca"
-  yearsPlaying       Int?                                // koľko rokov hrá
-  matchMinutes       Int?                                // dĺžka zápasu (typicky 90)
-  dominantFoot       String?                             // "left" | "right" | "both"
-  seasonStartDate    DateTime?     @db.Date              // začiatok sezóny
-  gymDaysPerWeek     Int?                                // koľkokrát týždenne do gymu
-  trainingExperience String?                             // "začiatočník" | "pokročilý"...
-  seasonGoals        String?                             // ciele do nasledujúcej sezóny
-  strengths          String?                             // silné stránky (futbal/kondícia)
-  weaknesses         String?                             // slabiny na zlepšenie
-  injuries           String?                             // dlhodobé zranenia / obmedzenia
-  currentStatus      String?                             // aktuálny stav / bolesti (dynamické, mení sa)
-  gymEquipment       String?                             // dostupné vybavenie (plná posilňovňa / činky doma...)
-  workoutToken       String?       @unique               // tajný token pre webhook (Apple Watch skratka)
-  stepGoal           Int?                                // denný cieľ krokov (default 9000)
-  foodRules          String?                             // pravidlá nákupu/rotácie (obchody, rozpočet, cheat meal)
+  footballLeague     String? // liga, napr. "III. liga"
+  footballPosition   String? // post, napr. "stredný obranca"
+  yearsPlaying       Int? // koľko rokov hrá
+  matchMinutes       Int? // dĺžka zápasu (typicky 90)
+  dominantFoot       String? // "left" | "right" | "both"
+  seasonStartDate    DateTime? @db.Date // začiatok sezóny
+  gymDaysPerWeek     Int? // koľkokrát týždenne do gymu
+  trainingExperience String? // "začiatočník" | "pokročilý"...
+  seasonGoals        String? // ciele do nasledujúcej sezóny
+  strengths          String? // silné stránky (futbal/kondícia)
+  weaknesses         String? // slabiny na zlepšenie
+  injuries           String? // dlhodobé zranenia / obmedzenia
+  currentStatus      String? // aktuálny stav / bolesti (dynamické, mení sa)
+  gymEquipment       String? // dostupné vybavenie (plná posilňovňa / činky doma...)
+  workoutToken       String?   @unique // tajný token pre webhook (Apple Watch skratka)
+  stepGoal           Int? // denný cieľ krokov (default 9000)
+  foodRules          String? // pravidlá nákupu/rotácie (obchody, rozpočet, cheat meal)
 
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @default(now()) @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   goals             Goal[]
   weightLogs        WeightLog[]
@@ -150,6 +150,7 @@ model User {
   stepCounts        StepCount[]
   favoriteMeals     FavoriteMeal[]
   checkins          DailyCheckin[]
+  shoppingLists     ShoppingList[]
 }
 
 // ── GOALS (história) ─────────────────────────────────────
@@ -158,12 +159,12 @@ model Goal {
   userId         String    @db.Uuid
   type           GoalType
   targetWeightKg Float?
-  targetCalories Int?      // ak null → počíta sa z TDEE + type
+  targetCalories Int? // ak null → počíta sa z TDEE + type
   targetProteinG Int?
   targetCarbsG   Int?
   targetFatG     Int?
   validFrom      DateTime  @default(now())
-  validTo        DateTime?                               // null = aktuálne platný
+  validTo        DateTime? // null = aktuálne platný
   note           String?
   createdAt      DateTime  @default(now())
 
@@ -189,12 +190,12 @@ model WeightLog {
 // ── POTRAVINY (zdieľaná cache + vlastné) ─────────────────
 model Food {
   id           String     @id @default(uuid()) @db.Uuid
-  userId       String?    @db.Uuid                       // null = globálna cache; set = vlastná potravina
-  barcode      String?                                   // OFF EAN
+  userId       String?    @db.Uuid // null = globálna cache; set = vlastná potravina
+  barcode      String? // OFF EAN
   name         String
   brand        String?
   source       FoodSource
-  caloriesKcal Float                                     // na 100 g
+  caloriesKcal Float // na 100 g
   proteinG     Float
   carbsG       Float
   fatG         Float
@@ -202,7 +203,7 @@ model Food {
   sugarG       Float?
   saltG        Float?
   servingSizeG Float?
-  offData      Json?                                     // surový Open Food Facts payload
+  offData      Json? // surový Open Food Facts payload
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @default(now()) @updatedAt
 
@@ -220,7 +221,7 @@ model FoodLog {
   foodId       String   @db.Uuid
   mealType     MealType
   portionG     Float
-  caloriesKcal Float                                     // snapshot makier v čase zápisu
+  caloriesKcal Float // snapshot makier v čase zápisu
   proteinG     Float
   carbsG       Float
   fatG         Float
@@ -239,15 +240,15 @@ model ScheduleEvent {
   userId               String    @db.Uuid
   type                 EventType
   title                String?
-  gymFocus             String?                           // napr. "legs", "chest", "back"
+  gymFocus             String? // napr. "legs", "chest", "back"
   intensity            Intensity @default(MEDIUM)
   isRecurring          Boolean   @default(false)
-  dayOfWeek            Int?                              // 0–6, pre opakujúce sa
-  date                 DateTime? @db.Date                // pre jednorazové / výnimky
-  startTime            String?                           // "HH:MM"
+  dayOfWeek            Int? // 0–6, pre opakujúce sa
+  date                 DateTime? @db.Date // pre jednorazové / výnimky
+  startTime            String? // "HH:MM"
   durationMin          Int?
-  rpe                  Int?                              // 1–10 vnímaná náročnosť (weekly load)
-  estimatedCalorieBurn Int?                              // net kcal (MET formula)
+  rpe                  Int? // 1–10 vnímaná náročnosť (weekly load)
+  estimatedCalorieBurn Int? // net kcal (MET formula)
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @default(now()) @updatedAt
 
@@ -258,13 +259,13 @@ model ScheduleEvent {
 
 // ── REŠTAURÁCIE (Nitra) ──────────────────────────────────
 model Restaurant {
-  id        String           @id @default(uuid()) @db.Uuid
-  userId    String           @db.Uuid
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
   name      String
   address   String?
-  placeId   String?                                      // voliteľné Google Places
-  menuUrl   String?                                      // URL stránky s menu (auto-scan)
-  createdAt DateTime         @default(now())
+  placeId   String? // voliteľné Google Places
+  menuUrl   String? // URL stránky s menu (auto-scan)
+  createdAt DateTime @default(now())
 
   user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   menus RestaurantMenu[]
@@ -273,11 +274,11 @@ model Restaurant {
 }
 
 model RestaurantMenu {
-  id           String     @id @default(uuid()) @db.Uuid
-  restaurantId String     @db.Uuid
-  validFrom    DateTime   @db.Date
-  validTo      DateTime?  @db.Date
-  createdAt    DateTime   @default(now())
+  id           String    @id @default(uuid()) @db.Uuid
+  restaurantId String    @db.Uuid
+  validFrom    DateTime  @db.Date
+  validTo      DateTime? @db.Date
+  createdAt    DateTime  @default(now())
 
   restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   items      MenuItem[]
@@ -288,11 +289,11 @@ model RestaurantMenu {
 model MenuItem {
   id           String       @id @default(uuid()) @db.Uuid
   menuId       String       @db.Uuid
-  dayOfWeek    Int?                                      // 0–6, null = celý týždeň
+  dayOfWeek    Int? // 0–6, null = celý týždeň
   name         String
   description  String?
   priceEur     Float?
-  caloriesKcal Float?                                    // AI/manuálny odhad
+  caloriesKcal Float? // AI/manuálny odhad
   proteinG     Float?
   carbsG       Float?
   fatG         Float?
@@ -310,15 +311,15 @@ model MealPlan {
   id             String         @id @default(uuid()) @db.Uuid
   userId         String         @db.Uuid
   date           DateTime       @db.Date
-  model          String                                  // napr. "claude-sonnet-4-6"
+  model          String // napr. "claude-sonnet-4-6"
   targetCalories Int
   targetProteinG Int
   targetCarbsG   Int
   targetFatG     Int
   status         MealPlanStatus @default(GENERATED)
-  context        Json?                                   // payload odoslaný do AI (traceability)
-  dailyTip       String?                                 // konkrétny dnešný tip od AI
-  supplementPlan Json?                                   // [{ name, timing, reason }]
+  context        Json? // payload odoslaný do AI (traceability)
+  dailyTip       String? // konkrétny dnešný tip od AI
+  supplementPlan Json? // [{ name, timing, reason }]
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @default(now()) @updatedAt
 
@@ -334,15 +335,15 @@ model MealPlanItem {
   mealType     MealType
   name         String
   description  String?
-  timeOfDay    String?                                 // "07:30" – kedy jesť (fyziológia)
-  ingredients  Json?                                   // [{ name, grams }] – gramáž surovín
-  recipe       Json?                                   // [krok1, krok2, ...] – postup prípravy
+  timeOfDay    String? // "07:30" – kedy jesť (fyziológia)
+  ingredients  Json? // [{ name, grams }] – gramáž surovín
+  recipe       Json? // [krok1, krok2, ...] – postup prípravy
   portionG     Float?
   caloriesKcal Float
   proteinG     Float
   carbsG       Float
   fatG         Float
-  menuItemId   String?  @db.Uuid                         // ak je to návrh z reštaurácie
+  menuItemId   String?  @db.Uuid // ak je to návrh z reštaurácie
   sortOrder    Int      @default(0)
   createdAt    DateTime @default(now())
 
@@ -359,9 +360,9 @@ model AiInsight {
   type        InsightType
   periodStart DateTime    @db.Date
   periodEnd   DateTime    @db.Date
-  model       String                                     // napr. "claude-opus-4-8"
+  model       String // napr. "claude-opus-4-8"
   summary     String?
-  content     Json                                       // štruktúrované zistenia + odporúčania
+  content     Json // štruktúrované zistenia + odporúčania
   createdAt   DateTime    @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -406,21 +407,21 @@ enum TrainingKind {
 }
 
 model TrainingProgram {
-  id        String       @id @default(uuid()) @db.Uuid
-  userId    String       @db.Uuid
-  kind      TrainingKind
-  model     String
-  phase     String                                       // AI-určená fáza, napr. "Predsezóna – sila"
-  summary   String?                                      // stručný prehľad zamerania
-  context   Json?                                        // vstup do AI (traceability)
-  plan      Json?                                        // futbalový obsah (team focus, individ. sessiony, regenerácia)
-  guidance  Json?                                        // [odporúčania] – ako postupovať, stav/zranenie, regenerácia
-  reviewAfterDays Int?                                   // platnosť plánu (po koľkých dňoch obnoviť)
-  startDate DateTime?    @db.Date                        // od kedy plán platí
-  active    Boolean      @default(true)
-  createdAt DateTime     @default(now())
+  id              String       @id @default(uuid()) @db.Uuid
+  userId          String       @db.Uuid
+  kind            TrainingKind
+  model           String
+  phase           String // AI-určená fáza, napr. "Predsezóna – sila"
+  summary         String? // stručný prehľad zamerania
+  context         Json? // vstup do AI (traceability)
+  plan            Json? // futbalový obsah (team focus, individ. sessiony, regenerácia)
+  guidance        Json? // [odporúčania] – ako postupovať, stav/zranenie, regenerácia
+  reviewAfterDays Int? // platnosť plánu (po koľkých dňoch obnoviť)
+  startDate       DateTime?    @db.Date // od kedy plán platí
+  active          Boolean      @default(true)
+  createdAt       DateTime     @default(now())
 
-  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   days ProgramDay[]
 
   @@index([userId, kind, active])
@@ -430,8 +431,8 @@ model ProgramDay {
   id        String  @id @default(uuid()) @db.Uuid
   programId String  @db.Uuid
   dayIndex  Int
-  title     String                                       // "Deň 1 – Dolná časť"
-  focus     String?                                      // krátke zameranie
+  title     String // "Deň 1 – Dolná časť"
+  focus     String? // krátke zameranie
   sortOrder Int     @default(0)
 
   program   TrainingProgram   @relation(fields: [programId], references: [id], onDelete: Cascade)
@@ -445,8 +446,8 @@ model ProgramExercise {
   dayId     String  @db.Uuid
   name      String
   sets      Int
-  reps      String                                       // "8–10", "5", "AMRAP"
-  intensity String?                                      // "RPE 8", "75% 1RM"
+  reps      String // "8–10", "5", "AMRAP"
+  intensity String? // "RPE 8", "75% 1RM"
   restSec   Int?
   notes     String?
   sortOrder Int     @default(0)
@@ -484,7 +485,7 @@ model WorkoutBurn {
   durationMin Int?
   source      BurnSource @default(WATCH)
   occurredAt  DateTime   @default(now())
-  burnDate    DateTime   @db.Date                        // lokálny deň (Europe/Bratislava) pre denný súčet
+  burnDate    DateTime   @db.Date // lokálny deň (Europe/Bratislava) pre denný súčet
   createdAt   DateTime   @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -497,9 +498,9 @@ model FavoriteMeal {
   id           String   @id @default(uuid()) @db.Uuid
   userId       String   @db.Uuid
   name         String
-  mealTypes    String[] @default([])                     // BREAKFAST, LUNCH, DINNER, SNACK
-  ingredients  Json?                                     // [{ name, grams, shop? }]
-  recipe       Json?                                     // [krok1, krok2, ...]
+  mealTypes    String[] @default([]) // BREAKFAST, LUNCH, DINNER, SNACK
+  ingredients  Json? // [{ name, grams, shop? }]
+  recipe       Json? // [krok1, krok2, ...]
   portionG     Float?
   caloriesKcal Float
   proteinG     Float
@@ -507,7 +508,7 @@ model FavoriteMeal {
   fatG         Float
   prepMinutes  Int?
   priceEur     Float?
-  maxPerWeek   Int?                                      // napr. halušky 1×, cheat meal 1× za 2 týždne
+  maxPerWeek   Int? // napr. halušky 1×, cheat meal 1× za 2 týždne
   note         String?
   active       Boolean  @default(true)
   createdAt    DateTime @default(now())
@@ -519,14 +520,14 @@ model FavoriteMeal {
 
 // ── RANNÝ CHECK-IN ───────────────────────────────────────
 model DailyCheckin {
-  id             String   @id @default(uuid()) @db.Uuid
-  userId         String   @db.Uuid
-  date           DateTime @db.Date
-  energy         Int                                     // 1–5
-  sleepQuality   Int                                     // 1–5
-  muscleFatigue  Int                                     // 1–5 (5 = veľmi unavené)
-  note           String?
-  createdAt      DateTime @default(now())
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @db.Uuid
+  date          DateTime @db.Date
+  energy        Int // 1–5
+  sleepQuality  Int // 1–5
+  muscleFatigue Int // 1–5 (5 = veľmi unavené)
+  note          String?
+  createdAt     DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -546,4 +547,23 @@ model StepCount {
 
   @@unique([userId, stepDate])
   @@index([userId, stepDate])
+}
+
+// Týždenný nákupný zoznam vygenerovaný z jedálničkov (rozdelený podľa obchodov).
+model ShoppingList {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  fromDate   DateTime @db.Date
+  toDate     DateTime @db.Date
+  model      String
+  groups     Json // [{ shop, items: [{ name, product, amount, priceEur, why, checked }], subtotalEur }]
+  totalEur   Float
+  note       String?
+  budgetNote String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, fromDate])
 }

@@ -12,6 +12,7 @@ import {
   Goal,
   UtensilsCrossed,
   RotateCcw,
+  ShoppingBasket,
 } from "lucide-react";
 import { DEFAULT_FOOD_RULES } from "@/lib/food-rules";
 import { AnimatedNumber } from "@/components/ui/animated-number";
@@ -372,6 +373,22 @@ export function ProfileScreen() {
     >
       <motion.div variants={fade}>
         <BreakdownCard breakdown={breakdown} />
+      </motion.div>
+
+      <motion.div variants={fade}>
+        <Link
+          href="/nakup"
+          className="card flex items-center gap-3 p-4 transition active:scale-[0.99]"
+        >
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface-3 text-accent">
+            <ShoppingBasket className="h-5 w-5" strokeWidth={1.75} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-fg">Nákupný zoznam</p>
+            <p className="text-xs text-muted">Týždenný nákup podľa obchodov s konkrétnymi produktmi</p>
+          </div>
+          <ChevronRight className="h-5 w-5 shrink-0 text-muted" />
+        </Link>
       </motion.div>
 
       <motion.div variants={fade}>
