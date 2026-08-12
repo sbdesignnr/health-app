@@ -14,6 +14,7 @@ import {
   ChevronDown,
   ShoppingBasket,
   ChevronRight,
+  HeartPulse,
 } from "lucide-react";
 import Link from "next/link";
 import { MEALS } from "@/components/food-log/types";
@@ -147,6 +148,29 @@ function MacroChip({ color, value, letter }: { color: string; value: number; let
   );
 }
 
+function ProtocolCard({ title }: { title: string | null }) {
+  return (
+    <Link href="/protokol" className="card flex items-center gap-3 p-4 transition active:scale-[0.99]">
+      <div
+        className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${
+          title ? "bg-accent/15 text-accent ring-1 ring-inset ring-accent/25" : "bg-surface-3 text-accent"
+        }`}
+      >
+        <HeartPulse className="h-5 w-5" strokeWidth={1.75} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="font-semibold text-fg">Výživový protokol</p>
+        {title ? (
+          <p className="truncate text-xs text-accent">Aktívny: {title}</p>
+        ) : (
+          <p className="text-xs text-muted">Jedálniček podľa tvojho aktuálneho stavu (akné, trávenie…)</p>
+        )}
+      </div>
+      <ChevronRight className="h-5 w-5 shrink-0 text-muted" />
+    </Link>
+  );
+}
+
 export function MealPlanScreen() {
   const reduce = useReducedMotion();
   const [dayOffset, setDayOffset] = useState(0);
@@ -160,6 +184,7 @@ export function MealPlanScreen() {
   const [logged, setLogged] = useState<Set<string>>(new Set());
   const [recipeOpen, setRecipeOpen] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
+  const [protocolTitle, setProtocolTitle] = useState<string | null>(null);
 
   const toggleRecipe = (id: string) =>
     setRecipeOpen((s) => {
@@ -197,6 +222,21 @@ export function MealPlanScreen() {
       alive = false;
     };
   }, [date]);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/protocol");
+        if (res.ok && alive) setProtocolTitle((await res.json()).active?.title ?? null);
+      } catch {
+        /* nevadí */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   async function generate() {
     setGenerating(true);
@@ -328,6 +368,10 @@ export function MealPlanScreen() {
           <DaySwitch value={dayOffset} onChange={setDayOffset} />
         </motion.div>
 
+        <motion.div variants={fade}>
+          <ProtocolCard title={protocolTitle} />
+        </motion.div>
+
         <motion.div variants={fade} className="card relative overflow-hidden p-7 text-center">
           <div className="pointer-events-none absolute left-1/2 top-0 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/15 blur-3xl" />
           <div className="relative mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-accent/10 ring-1 ring-inset ring-accent/20">
@@ -384,6 +428,10 @@ export function MealPlanScreen() {
 
       <motion.div variants={fade}>
         <DaySwitch value={dayOffset} onChange={setDayOffset} />
+      </motion.div>
+
+      <motion.div variants={fade}>
+        <ProtocolCard title={protocolTitle} />
       </motion.div>
 
       {/* ── súhrnná karta ── */}

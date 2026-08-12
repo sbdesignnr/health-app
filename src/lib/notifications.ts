@@ -131,6 +131,24 @@ export async function buildDueNotifications(
         tag: "plan-refresh",
       });
     }
+
+    // 7) Koniec výživového protokolu – protokol dnes končí alebo už uplynul.
+    const protocol = await prisma.nutritionProtocol.findFirst({
+      where: { userId, active: true },
+      orderBy: { createdAt: "desc" },
+      select: { title: true, endDate: true },
+    });
+    if (protocol) {
+      const end = new Date(protocol.endDate).getTime();
+      if (Date.now() >= end - 12 * 3600000) {
+        out.push({
+          title: "Výživový protokol končí 🌿",
+          body: `Protokol „${protocol.title}“ dobehol. Vyhodnoť, ako sa cítiš, a otvor Protokol – priprav nový podľa aktuálneho stavu, alebo ho ukonči.`,
+          url: "/protokol",
+          tag: "protocol-end",
+        });
+      }
+    }
   }
 
   return out;

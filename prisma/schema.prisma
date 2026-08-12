@@ -135,23 +135,24 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  goals             Goal[]
-  weightLogs        WeightLog[]
-  foods             Food[]
-  foodLogs          FoodLog[]
-  scheduleEvents    ScheduleEvent[]
-  restaurants       Restaurant[]
-  mealPlans         MealPlan[]
-  aiInsights        AiInsight[]
-  notifications     Notification[]
-  pushSubscriptions PushSubscription[]
-  trainingPrograms  TrainingProgram[]
-  exerciseLogs      ExerciseLog[]
-  workoutBurns      WorkoutBurn[]
-  stepCounts        StepCount[]
-  favoriteMeals     FavoriteMeal[]
-  checkins          DailyCheckin[]
-  shoppingLists     ShoppingList[]
+  goals              Goal[]
+  weightLogs         WeightLog[]
+  foods              Food[]
+  foodLogs           FoodLog[]
+  scheduleEvents     ScheduleEvent[]
+  restaurants        Restaurant[]
+  mealPlans          MealPlan[]
+  aiInsights         AiInsight[]
+  notifications      Notification[]
+  pushSubscriptions  PushSubscription[]
+  trainingPrograms   TrainingProgram[]
+  exerciseLogs       ExerciseLog[]
+  workoutBurns       WorkoutBurn[]
+  stepCounts         StepCount[]
+  favoriteMeals      FavoriteMeal[]
+  checkins           DailyCheckin[]
+  shoppingLists      ShoppingList[]
+  nutritionProtocols NutritionProtocol[]
 }
 
 // ── GOALS (história) ─────────────────────────────────────
@@ -572,4 +573,31 @@ model ShoppingList {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, fromDate])
+}
+
+// ── VÝŽIVOVÝ PROTOKOL (jedálničky podľa aktuálneho stavu) ─
+// Používateľ napíše svoj aktuálny stav (napr. akné, ťažké jedlá, gut microbiome)
+// a AI vytvorí cielený protokol s dobou platnosti, ktorý riadi denné jedálničky.
+model NutritionProtocol {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @db.Uuid
+  stateText      String // čo používateľ napísal (jeho aktuálny stav)
+  title          String // AI názov protokolu
+  focus          String // hlavný cieľ (1 veta)
+  rationale      String // prečo tento prístup (fyziológia)
+  durationDays   Int
+  startDate      DateTime @db.Date
+  endDate        DateTime @db.Date
+  principles     Json // string[] – hlavné zásady
+  emphasizeFoods Json // string[] – čo zaraďovať (a prečo)
+  avoidFoods     Json // string[] – čomu sa vyhnúť (a prečo)
+  supplements    Json? // [{ name, timing, reason }]
+  expectations   String? // čo môže čakať a kedy
+  model          String
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, active])
 }

@@ -7,6 +7,7 @@ import { NUTRITION_KNOWLEDGE } from "./expert-knowledge";
 import { listFavorites, recentMealCounts } from "./favorites";
 import { checkinSummary, getCheckin } from "./checkin";
 import { getWeekLoad, TYPE_LABEL_SK } from "./weekly-load";
+import { getActiveProtocol, protocolForAi } from "./protocol";
 
 const MODEL = "claude-sonnet-4-6";
 const MEAL_TYPES = ["BREAKFAST", "MORNING_SNACK", "LUNCH", "AFTERNOON_SNACK", "DINNER"];
@@ -162,7 +163,12 @@ DOPLNKY:
 - V supplementPlan urči pre KAŽDÝ doplnok, ktorý užíva, ideálny čas a stručný dôvod (kreatín – kedykoľvek denne; omega-3 – k jedlu s tukom; magnézium – večer pred spaním; vitamín D3 – ráno k tuku; srvátkový proteín – po tréningu…).
 - Ak pre jeho problém niečo zjavne chýba, jemne to odporuč v dailyTip.
 
-ROTÁCIA A OBĽÚBENÉ JEDLÁ (KĽÚČOVÉ PRAVIDLO):
+AKTÍVNY VÝŽIVOVÝ PROTOKOL (AK JE V KONTEXTE – NAJVYŠŠIA PRIORITA):
+- Ak je v kontexte AKTÍVNY VÝŽIVOVÝ PROTOKOL, riaď sa PREDOVŠETKÝM jeho zásadami: cielene zaraď odporúčané potraviny a vynechaj tie, ktorým sa má vyhnúť.
+- Kvôli protokolu SMIEŠ pridať aj vhodné jedlá/suroviny mimo zoznamu obľúbených (napr. fermentované potraviny na mikrobióm). Rotácia a obľúbené jedlá sú až druhoradé.
+- Aj počas protokolu musí byť jedlo chutné, šťavnaté a musí ho nasýtiť; drž cieľové kalórie a bielkoviny pre športovca.
+
+ROTÁCIA A OBĽÚBENÉ JEDLÁ (KĽÚČOVÉ PRAVIDLO, ak NIE je aktívny protokol):
 - Jedálniček zostav VÝHRADNE z jeho OBĽÚBENÝCH JEDÁL uvedených v kontexte (vrátane smoothie). NEVYMÝŠĽAJ nové jedlá mimo zoznamu.
 - Pole "name" musí byť PRESNÝ názov obľúbeného jedla (kvôli sledovaniu rotácie).
 - ROTÁCIA: to isté jedlo nedávaj viac než 2× za týždeň. Rešpektuj limit „max za týždeň“, ak ho jedlo má.
@@ -328,12 +334,21 @@ async function gatherContext(userId: string, dateStr: string): Promise<GatheredC
   lines.push(menuLines.length ? menuLines.join("\n") : "- žiadne uložené menu");
 
   // ── Fáza 12: obľúbené jedlá, rotácia, check-in, dnešná záťaž ──
-  const [favorites, recentCounts, checkin, week] = await Promise.all([
+  const [favorites, recentCounts, checkin, week, protocol] = await Promise.all([
     listFavorites(userId),
     recentMealCounts(userId),
     getCheckin(userId, dateStr),
     getWeekLoad(userId, dateStr),
+    getActiveProtocol(userId),
   ]);
+
+  if (protocol) {
+    lines.push("");
+    lines.push("★★★ " + protocolForAi(protocol));
+    lines.push(
+      "→ TENTO PROTOKOL MÁ PREDNOSŤ. Dnešný jedálniček musí dodržať jeho zásady, zaraď odporúčané potraviny a vynechaj tie, ktorým sa má vyhnúť – aj keby to znamenalo odchýliť sa od zoznamu obľúbených jedál (môžeš pridať vhodné jedlá mimo zoznamu, ak to protokol vyžaduje). Stále to musí byť chutné a nasýtiť ho.",
+    );
+  }
 
   const today = week.days.find((d) => d.date === dateStr);
   lines.push("");
