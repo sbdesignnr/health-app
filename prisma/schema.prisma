@@ -153,6 +153,7 @@ model User {
   checkins           DailyCheckin[]
   shoppingLists      ShoppingList[]
   nutritionProtocols NutritionProtocol[]
+  workoutSplits      WorkoutSplit[]
 }
 
 // ── GOALS (história) ─────────────────────────────────────
@@ -600,4 +601,33 @@ model NutritionProtocol {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, active])
+}
+
+// ── VLASTNÉ SPLITY (Upper 1, Lower 1…) – používateľom definované tréningy ─
+model WorkoutSplit {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  name      String // napr. "Upper 1", "Lower 1", "Push"
+  note      String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercises SplitExercise[]
+
+  @@index([userId])
+}
+
+model SplitExercise {
+  id         String  @id @default(uuid()) @db.Uuid
+  splitId    String  @db.Uuid
+  name       String
+  targetSets Int?
+  targetReps String? // "8–10", "5", "AMRAP"
+  note       String?
+  sortOrder  Int     @default(0)
+
+  split WorkoutSplit @relation(fields: [splitId], references: [id], onDelete: Cascade)
+
+  @@index([splitId])
 }

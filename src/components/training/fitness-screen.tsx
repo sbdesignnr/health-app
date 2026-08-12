@@ -1,10 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence, useReducedMotion, type Variants } from "motion/react";
-import { Dumbbell, Sparkles, RefreshCw, ChevronDown, Timer, Video, CalendarClock, Lightbulb } from "lucide-react";
-import { Sheet } from "@/components/ui/sheet";
+import {
+  Dumbbell,
+  Sparkles,
+  RefreshCw,
+  ChevronDown,
+  ChevronRight,
+  Timer,
+  Video,
+  CalendarClock,
+  Lightbulb,
+  ListChecks,
+  TrendingUp,
+} from "lucide-react";
 import { getCached, setCached } from "@/lib/client-cache";
+import { ExerciseLogSheet } from "./exercise-log-sheet";
 
 function ytLink(q: string): string {
   return `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
@@ -65,8 +78,6 @@ type Program = {
   guidance: string[] | null;
   days: Day[];
 };
-type LogEntry = { id: string; weightKg: number; reps: number | null; note: string | null; loggedAt: string };
-
 const container: Variants = {
   hidden: {},
   show: { transition: { staggerChildren: 0.025 } },
@@ -75,237 +86,6 @@ const fade: Variants = {
   hidden: { opacity: 0, y: 10 },
   show: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] } },
 };
-
-function fmtDate(iso: string): string {
-  const [y, m, d] = iso.slice(0, 10).split("-");
-  return `${Number(d)}.${Number(m)}.${y.slice(2)}`;
-}
-
-// Kompaktný graf progresu váhy cviku.
-function MiniWeightChart({ entries }: { entries: LogEntry[] }) {
-  const pts = [...entries].reverse();
-  if (pts.length < 2) return null;
-  const W = 300;
-  const H = 64;
-  const pad = 8;
-  const ys = pts.map((p) => p.weightKg);
-  const min = Math.min(...ys);
-  const max = Math.max(...ys);
-  const span = max - min || 1;
-  const x = (i: number) => pad + (i / (pts.length - 1)) * (W - 2 * pad);
-  const y = (v: number) => pad + (1 - (v - min) / span) * (H - 2 * pad);
-  const line = pts.map((p, i) => `${x(i)},${y(p.weightKg)}`).join(" ");
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Graf progresu cviku">
-      <polyline
-        points={line}
-        fill="none"
-        stroke="var(--color-accent)"
-        strokeWidth="2"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-      <circle cx={x(pts.length - 1)} cy={y(pts[pts.length - 1].weightKg)} r="3" fill="var(--color-accent)" />
-    </svg>
-  );
-}
-
-/* ── sheet na zápis váhy + história (progres) ── */
-function ExerciseLogSheet({
-  exercise,
-  onClose,
-  onLogged,
-  onRenamed,
-}: {
-  exercise: Exercise;
-  onClose: () => void;
-  onLogged: (name: string, weightKg: number) => void;
-  onRenamed: (id: string, name: string) => void;
-}) {
-  const [weight, setWeight] = useState(exercise.lastWeightKg != null ? String(exercise.lastWeightKg) : "");
-  const [reps, setReps] = useState("");
-  const [note, setNote] = useState("");
-  const [history, setHistory] = useState<LogEntry[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [subOpen, setSubOpen] = useState(false);
-  const [sub, setSub] = useState(exercise.name);
-  const [subBusy, setSubBusy] = useState(false);
-
-  async function substitute() {
-    const name = sub.trim();
-    if (!name || name === exercise.name) {
-      setSubOpen(false);
-      return;
-    }
-    setSubBusy(true);
-    setError("");
-    try {
-      const res = await fetch("/api/training/exercise", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ exerciseId: exercise.id, name }),
-      });
-      if (!res.ok) throw new Error((await res.json()).error ?? "Nahradenie zlyhalo.");
-      onRenamed(exercise.id, name);
-      onClose();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Chyba.");
-    } finally {
-      setSubBusy(false);
-    }
-  }
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch(`/api/training/log?exercise=${encodeURIComponent(exercise.name)}`);
-        if (res.ok) setHistory((await res.json()).history ?? []);
-      } catch {
-        /* ignore */
-      }
-    })();
-  }, [exercise.name]);
-
-  async function save() {
-    const w = Number(weight);
-    if (!(w > 0)) {
-      setError("Zadaj váhu.");
-      return;
-    }
-    setBusy(true);
-    setError("");
-    try {
-      const res = await fetch("/api/training/log", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          exerciseName: exercise.name,
-          weightKg: w,
-          reps: reps ? Number(reps) : null,
-          note: note.trim() || null,
-        }),
-      });
-      const d = await res.json();
-      if (!res.ok) throw new Error(d.error ?? "Zápis zlyhal.");
-      setHistory(d.history ?? []);
-      setReps("");
-      setNote("");
-      onLogged(exercise.name, w);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Chyba.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const best = history.reduce((m, h) => Math.max(m, h.weightKg), 0);
-  const inp =
-    "w-full rounded-2xl border border-border bg-surface-2 px-4 py-3.5 text-fg outline-none transition placeholder:text-muted/70 focus:border-accent";
-
-  return (
-    <Sheet open onClose={onClose} title={exercise.name}>
-      <div className="space-y-4">
-        <p className="text-xs text-muted">
-          {exercise.sets} sérií × {exercise.reps}
-          {exercise.intensity ? ` · ${exercise.intensity}` : ""}
-        </p>
-
-        <div className="flex gap-2">
-          <div className="flex flex-[2] items-center rounded-2xl border border-border bg-surface-2 px-4 transition focus-within:border-accent">
-            <input
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
-              inputMode="decimal"
-              placeholder="Váha"
-              autoFocus
-              className="min-w-0 flex-1 bg-transparent py-3.5 text-fg outline-none placeholder:text-muted/70"
-            />
-            <span className="text-sm text-muted">kg</span>
-          </div>
-          <input
-            value={reps}
-            onChange={(e) => setReps(e.target.value)}
-            inputMode="numeric"
-            placeholder="Opak."
-            className={`flex-1 ${inp}`}
-          />
-        </div>
-        <input
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Poznámka (voliteľné)"
-          className={inp}
-        />
-
-        {error && (
-          <p className="rounded-xl bg-error/10 px-3 py-2 text-sm text-error ring-1 ring-inset ring-error/20">
-            {error}
-          </p>
-        )}
-
-        <button
-          onClick={save}
-          disabled={busy}
-          className="w-full rounded-card bg-accent py-3.5 font-semibold text-accent-fg transition active:scale-[0.99] disabled:opacity-60"
-        >
-          {busy ? "Zapisujem…" : "Zapísať váhu"}
-        </button>
-
-        <div>
-          <button
-            onClick={() => setSubOpen((v) => !v)}
-            className="text-xs font-medium text-muted transition active:opacity-70"
-          >
-            ⇄ Nahradiť iným cvikom (napr. Hack squat)
-          </button>
-          {subOpen && (
-            <div className="mt-2 flex gap-2">
-              <input
-                value={sub}
-                onChange={(e) => setSub(e.target.value)}
-                placeholder="Nový názov cviku"
-                className={inp}
-              />
-              <button
-                onClick={substitute}
-                disabled={subBusy}
-                className="shrink-0 rounded-2xl bg-surface-3 px-4 text-sm font-semibold text-white ring-1 ring-inset ring-border transition active:scale-95 disabled:opacity-60"
-              >
-                {subBusy ? "…" : "Nahradiť"}
-              </button>
-            </div>
-          )}
-        </div>
-
-        {history.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="label-caps">Progres</p>
-              {best > 0 && (
-                <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-accent ring-1 ring-inset ring-accent/20">
-                  PR {best} kg
-                </span>
-              )}
-            </div>
-            <MiniWeightChart entries={history} />
-            <div className="divide-y divide-border overflow-hidden rounded-2xl bg-surface-2">
-              {history.map((h) => (
-                <div key={h.id} className="flex items-center justify-between px-3.5 py-2.5 text-sm">
-                  <span className="text-muted tabular-nums">{fmtDate(h.loggedAt)}</span>
-                  <span className="font-semibold tabular-nums text-white">
-                    {h.weightKg} kg
-                    {h.reps != null && <span className="ml-1 text-xs font-normal text-muted">× {h.reps}</span>}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </Sheet>
-  );
-}
 
 function ExerciseRow({ e, onLog }: { e: Exercise; onLog: (e: Exercise) => void }) {
   return (
@@ -378,6 +158,48 @@ function DayCard({ day, onLog }: { day: Day; onLog: (e: Exercise) => void }) {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function NavCard({
+  href,
+  icon,
+  title,
+  subtitle,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <Link href={href} className="card flex items-center gap-3 p-4 transition active:scale-[0.99]">
+      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface-3 text-accent">{icon}</div>
+      <div className="min-w-0 flex-1">
+        <p className="font-semibold text-fg">{title}</p>
+        <p className="text-xs text-muted">{subtitle}</p>
+      </div>
+      <ChevronRight className="h-5 w-5 shrink-0 text-muted" />
+    </Link>
+  );
+}
+
+function FitnessNav() {
+  return (
+    <div className="space-y-3">
+      <NavCard
+        href="/fitness/moje"
+        icon={<ListChecks className="h-5 w-5" strokeWidth={1.75} />}
+        title="Moje tréningy"
+        subtitle="Vlastné splity (Upper 1, Lower 1…) s tvojimi cvikmi"
+      />
+      <NavCard
+        href="/fitness/progres"
+        icon={<TrendingUp className="h-5 w-5" strokeWidth={1.75} />}
+        title="Prehľad progresu"
+        subtitle="Váhy a objem tréningu podľa dní, týždňov a rokov"
+      />
     </div>
   );
 }
@@ -501,6 +323,7 @@ export function FitnessScreen() {
   if (!program) {
     return (
       <div className="space-y-5">
+        <FitnessNav />
         <div className="card relative overflow-hidden p-7 text-center">
           <div className="pointer-events-none absolute left-1/2 top-0 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/15 blur-3xl" />
           <div className="relative mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-accent/10 ring-1 ring-inset ring-accent/20">
@@ -538,6 +361,10 @@ export function FitnessScreen() {
       initial={reduce ? false : "hidden"}
       animate="show"
     >
+      <motion.div variants={fade}>
+        <FitnessNav />
+      </motion.div>
+
       <motion.div variants={fade} className="card relative overflow-hidden p-5">
         <div className="pointer-events-none absolute -right-10 -top-12 h-36 w-36 rounded-full bg-accent/10 blur-3xl" />
         <div className="relative flex items-center justify-between gap-2">
@@ -622,7 +449,15 @@ export function FitnessScreen() {
           exercise={logEx}
           onClose={() => setLogEx(null)}
           onLogged={applyLogged}
-          onRenamed={applyRenamed}
+          onSubstitute={async (newName) => {
+            const res = await fetch("/api/training/exercise", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ exerciseId: logEx.id, name: newName }),
+            });
+            if (!res.ok) throw new Error((await res.json()).error ?? "Nahradenie zlyhalo.");
+            applyRenamed(logEx.id, newName);
+          }}
         />
       )}
     </motion.div>
