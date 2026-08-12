@@ -20,6 +20,7 @@ export type NormalizedFood = {
   sugarG: number | null;
   saltG: number | null;
   servingSizeG: number | null;
+  imageUrl: string | null;
 };
 
 function num(v: unknown): number | null {
@@ -70,6 +71,12 @@ function pickName(p: Record<string, unknown>): string {
   return brand ? `${brand} (neznámy názov)` : "Neznámy produkt";
 }
 
+function pickImage(p: Record<string, unknown>): string | null {
+  const candidates = [p.image_front_small_url, p.image_small_url, p.image_front_url, p.image_url];
+  const url = candidates.find((v): v is string => typeof v === "string" && v.startsWith("http"));
+  return url ?? null;
+}
+
 function mapProduct(p: Record<string, unknown>, barcode: string | null): NormalizedFood {
   const n = (p.nutriments as Record<string, unknown>) ?? {};
   return {
@@ -84,6 +91,7 @@ function mapProduct(p: Record<string, unknown>, barcode: string | null): Normali
     sugarG: num(n.sugars_100g),
     saltG: num(n.salt_100g),
     servingSizeG: num(p.serving_quantity),
+    imageUrl: pickImage(p),
   };
 }
 
@@ -103,7 +111,7 @@ async function fetchJson(url: string): Promise<unknown | null> {
 // Vyhľadanie produktu podľa čiarového kódu (EAN).
 export async function fetchProductByBarcode(barcode: string): Promise<NormalizedFood | null> {
   const fields =
-    "code,product_name,product_name_sk,product_name_cs,generic_name,brands,nutriments,serving_quantity";
+    "code,product_name,product_name_sk,product_name_cs,generic_name,brands,nutriments,serving_quantity,image_front_small_url,image_small_url,image_front_url,image_url";
   const url = `${OFF_BASE}/api/v2/product/${encodeURIComponent(barcode)}.json?fields=${fields}`;
   const data = (await fetchJson(url)) as { status?: number; product?: Record<string, unknown> } | null;
   if (!data || data.status !== 1 || !data.product) return null;
@@ -112,7 +120,9 @@ export async function fetchProductByBarcode(barcode: string): Promise<Normalized
 
 // Textové vyhľadávanie cez Search-a-licious (full-text, vrátane SK/CZ produktov).
 export async function searchProducts(query: string, pageSize = 20): Promise<NormalizedFood[]> {
-  const url = `${SEARCH_BASE}/search?q=${encodeURIComponent(query)}&page_size=${pageSize}`;
+  const fields =
+    "code,product_name,product_name_sk,product_name_cs,generic_name,brands,nutriments,serving_quantity,image_front_small_url,image_small_url,image_url";
+  const url = `${SEARCH_BASE}/search?q=${encodeURIComponent(query)}&page_size=${pageSize}&fields=${fields}`;
   const data = (await fetchJson(url)) as { hits?: Record<string, unknown>[] } | null;
   const hits = Array.isArray(data?.hits) ? data!.hits : [];
   return hits.map((h) => mapProduct(h, (h.code as string) ?? null));

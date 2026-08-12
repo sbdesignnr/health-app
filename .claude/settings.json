@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(grep -n \"return { contextString\\\\|REŠTAURÁCIE\\\\|const \\\\[user, breakdown\" src/lib/meal-plan-ai.ts)",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(node -e ' *)",
+      "Bash(node --experimental-strip-types -e ' *)"
     ]
   }
 }

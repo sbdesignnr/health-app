@@ -37,6 +37,7 @@ enum FoodSource {
   OFF_VERIFIED
   AI_ESTIMATED
   CUSTOM
+  CURATED
 }
 
 enum MealType {
@@ -203,6 +204,11 @@ model Food {
   sugarG       Float?
   saltG        Float?
   servingSizeG Float?
+  category     String? // kategória pre ikonu (napr. "meat", "fruit")
+  baseUnit     String?    @default("g") // "g" alebo "ml"
+  servingUnits Json? // [{ label, grams }] – kusy/porcie
+  imageUrl     String? // reálna fotka (OFF produkty)
+  catalogSlug  String?    @unique // odkaz na kurátorovaný katalóg (globálne záznamy)
   offData      Json? // surový Open Food Facts payload
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @default(now()) @updatedAt

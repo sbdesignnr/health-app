@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Sheet } from "@/components/ui/sheet";
 import { BarcodeScanner } from "@/components/barcode-scanner";
-import { MEALS, type FoodResult, type FoodSource, type MealKey, type RecentFood } from "./types";
+import { FoodIcon } from "./food-icon";
+import { MEALS, type FoodResult, type FoodSource, type MealKey, type RecentFood, type ServingUnit } from "./types";
 
 type Tab = "search" | "scan" | "custom";
 
@@ -21,11 +22,13 @@ const emptyCustom = {
 };
 
 function Badge({ source }: { source: FoodSource }) {
+  if (source === "CURATED")
+    return <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[11px] font-medium text-accent">Databáza</span>;
   if (source === "AI_ESTIMATED")
     return <span className="rounded-full bg-carbs/15 px-2 py-0.5 text-[11px] font-medium text-carbs">AI odhad</span>;
   if (source === "CUSTOM")
     return <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-muted">Vlastné</span>;
-  return <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[11px] font-medium text-accent">Overené</span>;
+  return <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-muted">Značka</span>;
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -35,6 +38,13 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       {children}
     </label>
   );
+}
+
+// Zoznam jednotiek pre daný výsledok: základná (g/ml) + definované porcie/kusy.
+function unitsFor(food: FoodResult | RecentFood): ServingUnit[] {
+  const base = "baseUnit" in food ? food.baseUnit : "g";
+  const extra = "servingUnits" in food ? (food.servingUnits ?? []) : [];
+  return [{ label: base, grams: 1 }, ...extra];
 }
 
 export function AddFoodSheet({
@@ -52,7 +62,11 @@ export function AddFoodSheet({
 
   const [tab, setTab] = useState<Tab>("search");
   const [selected, setSelected] = useState<FoodResult | null>(null);
-  const [portion, setPortion] = useState(100);
+
+  // výber jednotky
+  const [unitIdx, setUnitIdx] = useState(0);
+  const [qty, setQty] = useState("1");
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -72,23 +86,61 @@ export function AddFoodSheet({
       return;
     }
     setSearching(true);
+    let cancelled = false;
     const t = setTimeout(async () => {
+      // 1. vlna – lokálny katalóg + vlastné (okamžite)
       try {
-        const res = await fetch(`/api/foods/search?q=${encodeURIComponent(term)}`);
+        const res = await fetch(`/api/foods/search?q=${encodeURIComponent(term)}&mode=local`);
         const data = await res.json();
-        setResults(Array.isArray(data.results) ? data.results : []);
+        if (!cancelled) setResults(Array.isArray(data.results) ? data.results : []);
       } catch {
-        setResults([]);
+        if (!cancelled) setResults([]);
       } finally {
-        setSearching(false);
+        if (!cancelled) setSearching(false);
       }
-    }, 350);
-    return () => clearTimeout(t);
+      // 2. vlna – značkové produkty z Open Food Facts (doplní sa nižšie)
+      try {
+        const res = await fetch(`/api/foods/search?q=${encodeURIComponent(term)}&mode=off`);
+        const data = await res.json();
+        if (cancelled || !Array.isArray(data.results)) return;
+        setResults((prev) => {
+          const seen = new Set(prev.map((r) => `${r.name.toLowerCase()}|${r.brand?.toLowerCase() ?? ""}`));
+          const extra = (data.results as FoodResult[]).filter(
+            (r) => !seen.has(`${r.name.toLowerCase()}|${r.brand?.toLowerCase() ?? ""}`),
+          );
+          return [...prev, ...extra];
+        });
+      } catch {
+        /* OFF je len doplnok */
+      }
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
   }, [q, tab, selected]);
+
+  const units = useMemo(() => (selected ? unitsFor(selected) : [{ label: "g", grams: 1 }]), [selected]);
+  const unitGrams = units[unitIdx]?.grams ?? 1;
+  const grams = Math.max(0, (Number(qty.replace(",", ".")) || 0) * unitGrams);
+
+  // Po výbere potraviny nastav rozumnú predvolenú jednotku.
+  function initPortion(food: FoodResult) {
+    const u = unitsFor(food);
+    if (u.length > 1) {
+      // má kusy/porcie → predvoľ prvú porciu, množstvo 1
+      setUnitIdx(1);
+      setQty("1");
+    } else {
+      setUnitIdx(0);
+      setQty(String(food.servingSizeG ?? 100));
+    }
+  }
 
   function recentToFood(r: RecentFood): FoodResult {
     return {
       id: r.foodId,
+      catalogSlug: null,
       barcode: null,
       name: r.name,
       brand: r.brand,
@@ -102,28 +154,42 @@ export function AddFoodSheet({
       sugarG: null,
       saltG: null,
       servingSizeG: r.servingSizeG,
+      category: r.category,
+      baseUnit: r.baseUnit,
+      servingUnits: r.servingUnits,
+      imageUrl: null,
     };
   }
 
-  // Výber z hľadania – ak nemá id (prechodný OFF hit), doriešime cez barcode (cache + AI).
+  function selectFood(food: FoodResult) {
+    setSelected(food);
+    initPortion(food);
+  }
+
+  // Výber z hľadania – kurátorované/OFF prechodné položky doriešime na foodId.
   async function pickResult(food: FoodResult) {
     setError("");
     if (food.id) {
-      setSelected(food);
-      setPortion(food.servingSizeG ?? 100);
-      return;
-    }
-    if (!food.barcode) {
-      setError("Produkt sa nedá pridať (chýba kód).");
+      selectFood(food);
       return;
     }
     setBusy(true);
     try {
-      const res = await fetch(`/api/foods/barcode/${encodeURIComponent(food.barcode)}`);
-      if (!res.ok) throw new Error("Nepodarilo sa načítať produkt.");
-      const data = await res.json();
-      setSelected(data.result);
-      setPortion(data.result.servingSizeG ?? 100);
+      if (food.catalogSlug) {
+        const res = await fetch("/api/foods/catalog", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slug: food.catalogSlug }),
+        });
+        if (!res.ok) throw new Error("Nepodarilo sa načítať potravinu.");
+        selectFood((await res.json()).result);
+      } else if (food.barcode) {
+        const res = await fetch(`/api/foods/barcode/${encodeURIComponent(food.barcode)}`);
+        if (!res.ok) throw new Error("Nepodarilo sa načítať produkt.");
+        selectFood((await res.json()).result);
+      } else {
+        setError("Produkt sa nedá pridať (chýba kód).");
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Chyba.");
     } finally {
@@ -141,9 +207,7 @@ export function AddFoodSheet({
         return;
       }
       if (!res.ok) throw new Error("Vyhľadanie zlyhalo.");
-      const data = await res.json();
-      setSelected(data.result);
-      setPortion(data.result.servingSizeG ?? 100);
+      selectFood((await res.json()).result);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Chyba.");
     } finally {
@@ -171,9 +235,7 @@ export function AddFoodSheet({
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Uloženie zlyhalo.");
-      const data = await res.json();
-      setSelected(data.food);
-      setPortion(payload.servingSizeG ?? 100);
+      selectFood((await res.json()).food);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Chyba.");
     } finally {
@@ -182,14 +244,14 @@ export function AddFoodSheet({
   }
 
   async function confirmAdd() {
-    if (!selected?.id) return;
+    if (!selected?.id || !(grams > 0)) return;
     setBusy(true);
     setError("");
     try {
       const res = await fetch("/api/logs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ foodId: selected.id, mealType: meal, portionG: portion }),
+        body: JSON.stringify({ foodId: selected.id, mealType: meal, portionG: Math.round(grams) }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Zápis zlyhal.");
       onAdded();
@@ -200,7 +262,7 @@ export function AddFoodSheet({
     }
   }
 
-  const f = (portion || 0) / 100;
+  const f = grams / 100;
   const scale = (v: number | null) => (v == null ? "—" : Math.round(v * f));
 
   return (
@@ -208,26 +270,55 @@ export function AddFoodSheet({
       {selected ? (
         <div className="space-y-4">
           <div className="rounded-2xl border border-border bg-surface p-4">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
+            <div className="flex items-start gap-3">
+              <FoodIcon category={selected.category} imageUrl={selected.imageUrl} size={44} />
+              <div className="min-w-0 flex-1">
                 <p className="font-medium leading-tight">{selected.name}</p>
                 {selected.brand && <p className="text-xs text-muted">{selected.brand}</p>}
               </div>
               <Badge source={selected.source} />
             </div>
+
+            {/* výber jednotky */}
+            {units.length > 1 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {units.map((u, i) => (
+                  <button
+                    key={u.label}
+                    onClick={() => {
+                      setUnitIdx(i);
+                      setQty(i === 0 ? String(selected.servingSizeG ?? 100) : "1");
+                    }}
+                    className={`rounded-full px-3 py-1.5 text-sm font-medium transition active:scale-95 ${
+                      unitIdx === i
+                        ? "bg-accent text-accent-fg"
+                        : "bg-surface-2 text-muted ring-1 ring-inset ring-border"
+                    }`}
+                  >
+                    {u.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="mt-3 flex items-center gap-2">
               <input
                 type="number"
-                min={1}
-                value={portion}
-                onChange={(e) => setPortion(Number(e.target.value))}
+                min={0}
+                inputMode="decimal"
+                value={qty}
+                onChange={(e) => setQty(e.target.value)}
                 className="w-24 rounded-xl border border-border bg-surface-2 px-3 py-2 text-right tabular-nums outline-none focus:border-accent"
               />
-              <span className="text-sm text-muted">g</span>
+              <span className="text-sm text-muted">
+                {units[unitIdx]?.label}
+                {unitIdx > 0 && <span className="ml-1 text-muted/70">≈ {Math.round(grams)} g</span>}
+              </span>
               <div className="ml-auto text-lg font-semibold tabular-nums">
                 {scale(selected.caloriesKcal)} <span className="text-xs font-normal text-muted">kcal</span>
               </div>
             </div>
+
             <div className="mt-2 flex gap-3 text-xs text-muted">
               <span>
                 <span className="text-protein">{scale(selected.proteinG)} g</span> biel.
@@ -244,7 +335,7 @@ export function AddFoodSheet({
           {error && <p className="text-sm text-protein">{error}</p>}
 
           <button
-            disabled={busy || !(portion > 0)}
+            disabled={busy || !(grams > 0)}
             onClick={confirmAdd}
             className="w-full rounded-2xl bg-accent py-3 font-semibold text-accent-fg transition active:scale-[0.99] disabled:opacity-60"
           >
@@ -288,7 +379,7 @@ export function AddFoodSheet({
                 autoFocus
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Hľadať potravinu… (napr. Milka)"
+                placeholder="Hľadať potravinu… (napr. vajce, kuracie, ryža)"
                 className={inp}
               />
 
@@ -300,34 +391,44 @@ export function AddFoodSheet({
                       key={r.foodId}
                       disabled={busy}
                       onClick={() => pickResult(recentToFood(r))}
-                      className="flex w-full items-center justify-between rounded-xl border border-border bg-surface px-3 py-2.5 text-left transition active:bg-surface-2"
+                      className="flex w-full items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2.5 text-left transition active:bg-surface-2"
                     >
-                      <span className="truncate text-sm">{r.name}</span>
+                      <FoodIcon category={r.category} size={36} />
+                      <span className="min-w-0 flex-1 truncate text-sm">{r.name}</span>
                       <span className="ml-2 shrink-0 text-xs text-muted">{r.lastPortionG} g</span>
                     </button>
                   ))}
                 </div>
               )}
 
-              {searching && <p className="text-sm text-muted">Hľadám…</p>}
+              {searching && results.length === 0 && <p className="text-sm text-muted">Hľadám…</p>}
 
               <div className="space-y-1.5">
                 {results.map((r, idx) => (
                   <button
-                    key={`${r.barcode ?? r.name}-${idx}`}
+                    key={`${r.catalogSlug ?? r.barcode ?? r.name}-${idx}`}
                     disabled={busy}
                     onClick={() => pickResult(r)}
-                    className="flex w-full items-center justify-between gap-2 rounded-xl border border-border bg-surface px-3 py-2.5 text-left transition active:bg-surface-2 disabled:opacity-60"
+                    className="flex w-full items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2.5 text-left transition active:bg-surface-2 disabled:opacity-60"
                   >
-                    <span className="min-w-0">
+                    <FoodIcon category={r.category} imageUrl={r.imageUrl} size={40} />
+                    <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm">{r.name}</span>
                       {r.brand && <span className="block truncate text-xs text-muted">{r.brand}</span>}
                     </span>
-                    <span className="shrink-0 text-xs tabular-nums text-muted">
-                      {r.caloriesKcal != null ? `${Math.round(r.caloriesKcal)} kcal/100g` : "—"}
+                    <span className="flex shrink-0 flex-col items-end gap-0.5">
+                      <span className="text-xs tabular-nums text-muted">
+                        {r.caloriesKcal != null ? `${Math.round(r.caloriesKcal)} kcal` : "—"}
+                      </span>
+                      <span className="text-[10px] text-muted/70">/100 {r.baseUnit}</span>
                     </span>
                   </button>
                 ))}
+                {!searching && q.trim().length >= 2 && results.length === 0 && (
+                  <p className="py-4 text-center text-sm text-muted">
+                    Nič sa nenašlo. Skús iný názov alebo pridaj cez „Vlastné“.
+                  </p>
+                )}
               </div>
             </div>
           )}

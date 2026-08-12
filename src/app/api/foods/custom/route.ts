@@ -31,6 +31,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     food: {
       id: food.id,
+      catalogSlug: null,
       barcode: null,
       name: food.name,
       brand: food.brand,
@@ -44,6 +45,10 @@ export async function POST(request: Request) {
       sugarG: food.sugarG,
       saltG: food.saltG,
       servingSizeG: food.servingSizeG,
+      category: "other",
+      baseUnit: "g",
+      servingUnits: [],
+      imageUrl: null,
     },
   });
 }

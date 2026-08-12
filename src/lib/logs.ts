@@ -15,12 +15,16 @@ export const MEAL_KEYS: MealKey[] = [
   "DINNER",
 ];
 
+type FoodSourceLabel = "OFF_VERIFIED" | "AI_ESTIMATED" | "CUSTOM" | "CURATED";
+type ServingUnit = { label: string; grams: number };
+
 export type LogItemDTO = {
   id: string;
   foodId: string;
   name: string;
   brand: string | null;
-  source: "OFF_VERIFIED" | "AI_ESTIMATED" | "CUSTOM";
+  source: FoodSourceLabel;
+  category: string | null;
   mealType: MealKey;
   portionG: number;
   caloriesKcal: number;
@@ -39,7 +43,10 @@ export type RecentFoodDTO = {
   carbsG: number;
   fatG: number;
   servingSizeG: number | null;
-  source: "OFF_VERIFIED" | "AI_ESTIMATED" | "CUSTOM";
+  source: FoodSourceLabel;
+  category: string | null;
+  baseUnit: string;
+  servingUnits: ServingUnit[];
 };
 
 const r0 = (n: number) => Math.round(n);
@@ -62,7 +69,7 @@ function snapshot(
 export async function getDayData(userId: string, from: Date, to: Date) {
   const logs = await prisma.foodLog.findMany({
     where: { userId, loggedAt: { gte: from, lt: to } },
-    include: { food: { select: { name: true, brand: true, source: true } } },
+    include: { food: { select: { name: true, brand: true, source: true, category: true } } },
     orderBy: { createdAt: "asc" },
   });
 
@@ -72,6 +79,7 @@ export async function getDayData(userId: string, from: Date, to: Date) {
     name: l.food.name,
     brand: l.food.brand,
     source: l.food.source as LogItemDTO["source"],
+    category: l.food.category,
     mealType: l.mealType as MealKey,
     portionG: l.portionG,
     caloriesKcal: l.caloriesKcal,
@@ -164,6 +172,11 @@ export async function getRecentFoods(userId: string, limit = 10): Promise<Recent
       fatG: l.food.fatG,
       servingSizeG: l.food.servingSizeG,
       source: l.food.source as RecentFoodDTO["source"],
+      category: l.food.category,
+      baseUnit: l.food.baseUnit ?? "g",
+      servingUnits: Array.isArray(l.food.servingUnits)
+        ? (l.food.servingUnits as ServingUnit[])
+        : [],
     });
     if (out.length >= limit) break;
   }

@@ -1,6 +1,7 @@
 "use client";
 
 import { Plus } from "lucide-react";
+import { FoodIcon } from "./food-icon";
 import type { LogItem, MealKey } from "./types";
 
 export function MealSection({
@@ -44,9 +45,10 @@ export function MealSection({
             <li key={item.id}>
               <button
                 onClick={() => onEdit(item)}
-                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition active:bg-surface-2"
+                className="flex w-full items-center gap-3 px-4 py-3 text-left transition active:bg-surface-2"
               >
-                <div className="min-w-0">
+                <FoodIcon category={item.category} size={36} />
+                <div className="min-w-0 flex-1">
                   <p className="truncate text-sm text-fg">{item.name}</p>
                   <p className="truncate text-xs text-muted">
                     {item.portionG} g{item.brand ? ` · ${item.brand}` : ""}
