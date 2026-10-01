@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion, type Variants } from "motion/react";
 import { getCached, setCached } from "@/lib/client-cache";
+
+const SK_DAY_NAMES = ["Nedeľa", "Pondelok", "Utorok", "Streda", "Štvrtok", "Piatok", "Sobota"];
 import {
   Goal,
   Sparkles,
@@ -51,7 +53,7 @@ function StartSwitch({ value, onChange }: { value: number; onChange: (n: number)
 }
 
 type Drill = { name: string; detail: string };
-type Session = { day: string; title: string; focus: string; drills: Drill[] };
+type Session = { dayOfWeek: number; title: string; focus: string; drills: Drill[] };
 type FootballPlan = {
   teamTrainingFocus: string[];
   individualSessions: Session[];
@@ -248,6 +250,10 @@ export function FootballScreen() {
         💪 Toto je čistý <span className="text-fg">futbal</span>. Silový/gym tréning (s cvikmi a zápisom
         váh) nájdeš v module <span className="text-fg">Fitness</span>.
       </motion.p>
+      <motion.p variants={fade} className="px-1 text-xs text-muted">
+        📅 Individuálne tréningy sa automaticky zapíšu do <span className="text-fg">Rozvrhu</span> —
+        počítajú sa do tvojich denných kalórií aj do týždennej záťaže.
+      </motion.p>
 
       {program.guidance && program.guidance.length > 0 && (
         <motion.div variants={fade} className="card space-y-2.5 p-5">
@@ -299,7 +305,7 @@ export function FootballScreen() {
             <div key={si} className="card space-y-3 p-4">
               <div>
                 <span className="inline-block rounded-full bg-surface-3 px-2.5 py-1 text-[11px] font-medium text-accent">
-                  {s.day}
+                  {SK_DAY_NAMES[s.dayOfWeek] ?? "?"}
                 </span>
                 <p className="mt-2 font-semibold leading-snug text-white">{s.title}</p>
                 {s.focus && <p className="mt-0.5 text-xs leading-relaxed text-muted">{s.focus}</p>}

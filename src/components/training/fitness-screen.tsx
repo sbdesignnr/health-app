@@ -365,6 +365,11 @@ export function FitnessScreen() {
         <FitnessNav />
       </motion.div>
 
+      <motion.p variants={fade} className="px-1 text-xs text-muted">
+        📅 Dni tohto programu sa automaticky zapíšu do <span className="text-fg">Rozvrhu</span> — počítajú
+        sa do tvojich denných kalórií aj do týždennej záťaže.
+      </motion.p>
+
       <motion.div variants={fade} className="card relative overflow-hidden p-5">
         <div className="pointer-events-none absolute -right-10 -top-12 h-36 w-36 rounded-full bg-accent/10 blur-3xl" />
         <div className="relative flex items-center justify-between gap-2">

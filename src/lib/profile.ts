@@ -30,7 +30,7 @@ export async function updateProfile(
     matchMinutes?: number | null;
     dominantFoot?: string | null;
     seasonStartDate?: string | null;
-    gymDaysPerWeek?: number | null;
+    extraTrainingDaysPerWeek?: number | null;
     trainingExperience?: string | null;
     stepGoal?: number | null;
     seasonGoals?: string | null;
@@ -72,7 +72,8 @@ export async function updateProfile(
           : data.seasonStartDate
             ? new Date(data.seasonStartDate)
             : null,
-      gymDaysPerWeek: data.gymDaysPerWeek === undefined ? undefined : data.gymDaysPerWeek,
+      extraTrainingDaysPerWeek:
+        data.extraTrainingDaysPerWeek === undefined ? undefined : data.extraTrainingDaysPerWeek,
       trainingExperience:
         data.trainingExperience === undefined ? undefined : data.trainingExperience,
       stepGoal: data.stepGoal === undefined ? undefined : data.stepGoal,

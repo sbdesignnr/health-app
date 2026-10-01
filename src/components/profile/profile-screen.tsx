@@ -102,6 +102,76 @@ function splitTags(s: string): string[] {
     .filter(Boolean);
 }
 
+// Natívne date/time inputy (najmä na Safari/iOS) vedia pri určitých medzistavoch vrátiť
+// nekompletný/nevalidný string – ak ho React skúsi vrátiť naspäť ako .value, prehliadač
+// vyhodí "The string did not match the expected pattern." Preto nikdy neuložíme nič iné
+// ako prázdny string alebo presne platný formát.
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^\d{2}:\d{2}$/;
+
+// Koncept rozpísaného profilu v localStorage – poistka, aby pri chybe uloženia,
+// zlyhaní siete alebo zatvorení appky nezmizol rozpísaný text.
+const DRAFT_KEY = "profile-draft-v1";
+
+type ProfileDraft = {
+  name: string;
+  heightCm: string;
+  birthDate: string;
+  sex: Sex | "";
+  activity: Activity;
+  goal: GoalType;
+  dietType: string;
+  allergies: string;
+  dislikes: string;
+  likes: string;
+  supplements: string;
+  healthConcerns: string[];
+  healthNotes: string;
+  foodRules: string;
+  wakeTime: string;
+  sleepTime: string;
+  stressLevel: number | null;
+  sleepQuality: number | null;
+  footballLeague: string;
+  footballPosition: string;
+  yearsPlaying: string;
+  matchMinutes: string;
+  dominantFoot: string;
+  seasonStartDate: string;
+  extraTrainingDaysPerWeek: string;
+  trainingExperience: string;
+  stepGoal: string;
+  seasonGoals: string;
+  strengths: string;
+  weaknesses: string;
+  injuries: string;
+  gymEquipment: string;
+  currentStatus: string;
+};
+
+function readDraft(): ProfileDraft | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    return raw ? (JSON.parse(raw) as ProfileDraft) : null;
+  } catch {
+    return null;
+  }
+}
+function writeDraft(d: ProfileDraft) {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
+  } catch {
+    // súkromné okno / plné úložisko – koncept sa jednoducho neuloží
+  }
+}
+function clearDraft() {
+  try {
+    localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // ignoruj
+  }
+}
+
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block space-y-1.5">
@@ -212,6 +282,7 @@ export function ProfileScreen() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [breakdown, setBreakdown] = useState<Breakdown | null>(null);
+  const [draftRestored, setDraftRestored] = useState(false);
 
   const [name, setName] = useState("");
   const [heightCm, setHeightCm] = useState("");
@@ -237,7 +308,7 @@ export function ProfileScreen() {
   const [matchMinutes, setMatchMinutes] = useState("");
   const [dominantFoot, setDominantFoot] = useState("");
   const [seasonStartDate, setSeasonStartDate] = useState("");
-  const [gymDaysPerWeek, setGymDaysPerWeek] = useState("");
+  const [extraTrainingDaysPerWeek, setExtraTrainingDaysPerWeek] = useState("");
   const [trainingExperience, setTrainingExperience] = useState("");
   const [stepGoal, setStepGoal] = useState("");
   const [seasonGoals, setSeasonGoals] = useState("");
@@ -277,7 +348,9 @@ export function ProfileScreen() {
           setMatchMinutes(p.matchMinutes != null ? String(p.matchMinutes) : "");
           setDominantFoot(p.dominantFoot ?? "");
           setSeasonStartDate(p.seasonStartDate ?? "");
-          setGymDaysPerWeek(p.gymDaysPerWeek != null ? String(p.gymDaysPerWeek) : "");
+          setExtraTrainingDaysPerWeek(
+            p.extraTrainingDaysPerWeek != null ? String(p.extraTrainingDaysPerWeek) : "",
+          );
           setTrainingExperience(p.trainingExperience ?? "");
           setStepGoal(p.stepGoal != null ? String(p.stepGoal) : "");
           setSeasonGoals(p.seasonGoals ?? "");
@@ -289,11 +362,133 @@ export function ProfileScreen() {
         }
         setGoal((data.goalType as GoalType) ?? "MAINTAIN_PERFORMANCE");
         setBreakdown(data.breakdown ?? null);
+
+        // Ak existuje neuložený koncept (napr. z predošlej relácie, kde uloženie zlyhalo),
+        // má prednosť pred tým, čo je v databáze – nech sa rozpísaný text nestratí.
+        const draft = readDraft();
+        if (draft) {
+          setName(draft.name);
+          setHeightCm(draft.heightCm);
+          setBirthDate(DATE_RE.test(draft.birthDate) ? draft.birthDate : "");
+          setSex(draft.sex);
+          setActivity(draft.activity);
+          setGoal(draft.goal);
+          setDietType(draft.dietType);
+          setAllergies(draft.allergies);
+          setDislikes(draft.dislikes);
+          setLikes(draft.likes);
+          setSupplements(draft.supplements);
+          setHealthConcerns(draft.healthConcerns);
+          setHealthNotes(draft.healthNotes);
+          setFoodRules(draft.foodRules);
+          setWakeTime(TIME_RE.test(draft.wakeTime) ? draft.wakeTime : "");
+          setSleepTime(TIME_RE.test(draft.sleepTime) ? draft.sleepTime : "");
+          setStressLevel(draft.stressLevel);
+          setSleepQuality(draft.sleepQuality);
+          setFootballLeague(draft.footballLeague);
+          setFootballPosition(draft.footballPosition);
+          setYearsPlaying(draft.yearsPlaying);
+          setMatchMinutes(draft.matchMinutes);
+          setDominantFoot(draft.dominantFoot);
+          setSeasonStartDate(DATE_RE.test(draft.seasonStartDate) ? draft.seasonStartDate : "");
+          setExtraTrainingDaysPerWeek(draft.extraTrainingDaysPerWeek);
+          setTrainingExperience(draft.trainingExperience);
+          setStepGoal(draft.stepGoal);
+          setSeasonGoals(draft.seasonGoals);
+          setStrengths(draft.strengths);
+          setWeaknesses(draft.weaknesses);
+          setInjuries(draft.injuries);
+          setGymEquipment(draft.gymEquipment);
+          setCurrentStatus(draft.currentStatus);
+          setDraftRestored(true);
+        }
       } finally {
         setLoading(false);
       }
     })();
   }, []);
+
+  // Autosave konceptu do localStorage pri každej zmene (po dokončení načítania),
+  // aby sa rozpísaný text nestratil pri zlyhaní uloženia, reštarte appky alebo zavretí tabu.
+  useEffect(() => {
+    if (loading) return;
+    writeDraft({
+      name,
+      heightCm,
+      birthDate,
+      sex,
+      activity,
+      goal,
+      dietType,
+      allergies,
+      dislikes,
+      likes,
+      supplements,
+      healthConcerns,
+      healthNotes,
+      foodRules,
+      wakeTime,
+      sleepTime,
+      stressLevel,
+      sleepQuality,
+      footballLeague,
+      footballPosition,
+      yearsPlaying,
+      matchMinutes,
+      dominantFoot,
+      seasonStartDate,
+      extraTrainingDaysPerWeek,
+      trainingExperience,
+      stepGoal,
+      seasonGoals,
+      strengths,
+      weaknesses,
+      injuries,
+      gymEquipment,
+      currentStatus,
+    });
+  }, [
+    loading,
+    name,
+    heightCm,
+    birthDate,
+    sex,
+    activity,
+    goal,
+    dietType,
+    allergies,
+    dislikes,
+    likes,
+    supplements,
+    healthConcerns,
+    healthNotes,
+    foodRules,
+    wakeTime,
+    sleepTime,
+    stressLevel,
+    sleepQuality,
+    footballLeague,
+    footballPosition,
+    yearsPlaying,
+    matchMinutes,
+    dominantFoot,
+    seasonStartDate,
+    extraTrainingDaysPerWeek,
+    trainingExperience,
+    stepGoal,
+    seasonGoals,
+    strengths,
+    weaknesses,
+    injuries,
+    gymEquipment,
+    currentStatus,
+  ]);
+
+  function discardDraft() {
+    clearDraft();
+    setDraftRestored(false);
+    window.location.reload();
+  }
 
   async function save() {
     setBusy(true);
@@ -328,7 +523,7 @@ export function ProfileScreen() {
           matchMinutes: matchMinutes ? Number(matchMinutes) : null,
           dominantFoot: dominantFoot || null,
           seasonStartDate: seasonStartDate || null,
-          gymDaysPerWeek: gymDaysPerWeek ? Number(gymDaysPerWeek) : null,
+          extraTrainingDaysPerWeek: extraTrainingDaysPerWeek ? Number(extraTrainingDaysPerWeek) : null,
           trainingExperience: trainingExperience || null,
           stepGoal: stepGoal ? Number(stepGoal) : null,
           seasonGoals: seasonGoals.trim() || null,
@@ -343,6 +538,8 @@ export function ProfileScreen() {
       const data = await res.json();
       setBreakdown(data.breakdown);
       setSaved(true);
+      clearDraft();
+      setDraftRestored(false);
       setTimeout(() => setSaved(false), 2500);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Chyba.");
@@ -371,6 +568,25 @@ export function ProfileScreen() {
       initial={reduce ? false : "hidden"}
       animate="show"
     >
+      {draftRestored && (
+        <motion.div
+          variants={fade}
+          className="flex items-center justify-between gap-3 rounded-card border border-accent/25 bg-accent/[0.07] px-4 py-3"
+        >
+          <p className="text-xs leading-relaxed text-fg">
+            Obnovil som rozpísaný, ešte neuložený profil z predošlej relácie — skontroluj si údaje a
+            ulož.
+          </p>
+          <button
+            type="button"
+            onClick={discardDraft}
+            className="shrink-0 whitespace-nowrap text-[11px] font-medium text-muted underline transition active:opacity-70"
+          >
+            Zahodiť
+          </button>
+        </motion.div>
+      )}
+
       <motion.div variants={fade}>
         <BreakdownCard breakdown={breakdown} />
       </motion.div>
@@ -489,7 +705,15 @@ export function ProfileScreen() {
             <input inputMode="numeric" value={heightCm} onChange={(e) => setHeightCm(e.target.value)} className={inp} />
           </Field>
           <Field label="Dátum narodenia">
-            <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} className={inp} />
+            <input
+              type="date"
+              value={birthDate}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "" || DATE_RE.test(v)) setBirthDate(v);
+              }}
+              className={inp}
+            />
           </Field>
         </div>
 
@@ -539,10 +763,26 @@ export function ProfileScreen() {
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Čas budenia">
-            <input type="time" value={wakeTime} onChange={(e) => setWakeTime(e.target.value)} className={inp} />
+            <input
+              type="time"
+              value={wakeTime}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "" || TIME_RE.test(v)) setWakeTime(v);
+              }}
+              className={inp}
+            />
           </Field>
           <Field label="Čas spánku">
-            <input type="time" value={sleepTime} onChange={(e) => setSleepTime(e.target.value)} className={inp} />
+            <input
+              type="time"
+              value={sleepTime}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "" || TIME_RE.test(v)) setSleepTime(v);
+              }}
+              className={inp}
+            />
           </Field>
         </div>
 
@@ -672,20 +912,27 @@ export function ProfileScreen() {
             <input
               type="date"
               value={seasonStartDate}
-              onChange={(e) => setSeasonStartDate(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "" || DATE_RE.test(v)) setSeasonStartDate(v);
+              }}
               className={inp}
             />
           </Field>
-          <Field label="Gym dní / týždeň">
+          <Field label="Tréningy navyše / týždeň">
             <input
               inputMode="numeric"
-              value={gymDaysPerWeek}
-              onChange={(e) => setGymDaysPerWeek(e.target.value)}
-              placeholder="napr. 4"
+              value={extraTrainingDaysPerWeek}
+              onChange={(e) => setExtraTrainingDaysPerWeek(e.target.value)}
+              placeholder="napr. 3"
               className={inp}
             />
           </Field>
         </div>
+        <p className="text-[11px] leading-relaxed text-muted">
+          Mimo klubových tréningov a zápasu — AI si to rozdelí medzi gym a individuálny futbalový
+          tréning (a zapíše priamo do Rozvrhu, aby sedeli aj kalórie).
+        </p>
 
         <Field label="Skúsenosti v posilňovni">
           <div className="flex flex-wrap gap-1.5">

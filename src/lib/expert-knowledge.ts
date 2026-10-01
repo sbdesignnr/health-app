@@ -30,6 +30,12 @@ REGENERÁCIA A ADAPTÁCIA:
 - Kortizol: po dlhom tréningu (90+ min) stúpa → sacharidy po záťaži ho pomáhajú znížiť.
 - Spánok: ~70 % rastového hormónu sa uvoľňuje v hlbokom spánku → 8 h spánku je pre športovca súčasť tréningu, nie luxus.
 
+POST-ŠPECIFICKÉ (prispôsob tréning presne postu hráča):
+- KRÍDELNÍK: potrebuje opakovanú výbušnosť (repeated sprint ability) – veľa krátkych maximálnych šprintov (5–20 m) s neúplným zotavením, zmenu smeru/rýchlosti (1v1 obídenie), silu v jednonohom odraze (bulharský drep, jednonohý skok), a presnosť v poslednej tretine (centrovanie, strela po prieniku, timing nábehu do voľného priestoru). Ak hráč hrá dobre, ale nedáva góly/asistencie, PRIORITIZUJ kvalitu zakončenia a posledného riešenia (realistický počet opakovaní streľby/centrov pod tlakom/na čas), nie len všeobecnú kondíciu.
+- STREDOPOLIAR: vytrvalosť + práca s loptou pod tlakom, prihrávky na diaľku, prepínanie medzi fázami hry.
+- OBRANCA: silové súboje, hra hlavou, rozohrávka, rýchly obranný štart (prvý krok).
+- ÚTOČNÍK: zakončenie všetkými spôsobmi, hra chrbtom k bránke, pohyb v šestnástke.
+
 FUTBALOVO-ŠPECIFICKÉ:
 - Futbal je INTERVALOVÝ šport (výbušné šprinty + zotavenie), nie vytrvalostný → tréning aj strava tomu majú zodpovedať.
 - Nabehané km podľa postu: stredopoliar 10–12 km/zápas, krídelník 9–11 km, obranca/útočník 6–9 km → iná energetická potreba.

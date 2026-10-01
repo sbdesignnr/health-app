@@ -66,6 +66,12 @@ enum Intensity {
   HIGH
 }
 
+enum ScheduleOrigin {
+  MANUAL // vytvoril používateľ v Rozvrhu
+  AI_GYM // automaticky zapísané z AI gym programu (Fitness modul)
+  AI_FOOTBALL // automaticky zapísané z AI futbalového plánu (individuálne tréningy)
+}
+
 enum MacrosSource {
   AI_ESTIMATED
   MANUAL
@@ -120,7 +126,7 @@ model User {
   matchMinutes       Int? // dĺžka zápasu (typicky 90)
   dominantFoot       String? // "left" | "right" | "both"
   seasonStartDate    DateTime? @db.Date // začiatok sezóny
-  gymDaysPerWeek     Int? // koľkokrát týždenne do gymu
+  extraTrainingDaysPerWeek Int? // koľko tréningov NAVYŠE mimo klubu chce (gym + futbal individuálne spolu)
   trainingExperience String? // "začiatočník" | "pokročilý"...
   seasonGoals        String? // ciele do nasledujúcej sezóny
   strengths          String? // silné stránky (futbal/kondícia)
@@ -257,6 +263,7 @@ model ScheduleEvent {
   durationMin          Int?
   rpe                  Int? // 1–10 vnímaná náročnosť (weekly load)
   estimatedCalorieBurn Int? // net kcal (MET formula)
+  origin               ScheduleOrigin @default(MANUAL) // kto/čo udalosť vytvoril
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @default(now()) @updatedAt
 
@@ -441,6 +448,7 @@ model ProgramDay {
   dayIndex  Int
   title     String // "Deň 1 – Dolná časť"
   focus     String? // krátke zameranie
+  dayOfWeek Int? // 0–6 (JS konvencia) – konkrétny deň v týždni, zapísaný aj do ScheduleEvent
   sortOrder Int     @default(0)
 
   program   TrainingProgram   @relation(fields: [programId], references: [id], onDelete: Cascade)

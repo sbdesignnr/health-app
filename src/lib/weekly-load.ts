@@ -11,6 +11,7 @@ export type WeekActivity = {
   rpe: number;
   load: number;
   isRecurring: boolean;
+  origin: string;
 };
 
 export type WeekDay = {
@@ -119,6 +120,7 @@ export async function getWeekLoad(userId: string, anyDateInWeek: string): Promis
         rpe,
         load: rpe * minutes,
         isRecurring: e.isRecurring,
+        origin: e.origin,
       };
     });
 

@@ -14,7 +14,14 @@ export type AiExercise = {
   restSec: number;
   notes: string;
 };
-export type AiDay = { title: string; focus: string; exercises: AiExercise[] };
+export type AiDay = {
+  title: string;
+  focus: string;
+  dayOfWeek: number;
+  estimatedDurationMin: number;
+  estimatedRpe: number;
+  exercises: AiExercise[];
+};
 export type AiProgram = {
   phase: string;
   summary: string;
@@ -46,15 +53,21 @@ const EX_PROPS = {
 };
 const EX_REQUIRED = ["name", "sets", "reps", "intensity", "restSec", "notes"];
 
+const DAY_COORD_PROPS = {
+  dayOfWeek: { type: "integer", description: "0=nedeľa,1=pondelok,...,6=sobota – presný deň, kedy sa tento tréning odohrá" },
+  estimatedDurationMin: { type: "integer", description: "odhadované trvanie celého tréningu v minútach" },
+  estimatedRpe: { type: "integer", description: "odhadovaná celková náročnosť tréningu 1–10 (RPE)" },
+};
 const DAY_PROPS = {
   title: { type: "string", description: "názov dňa, napr. 'Deň 1 – Dolná časť (sila)'" },
   focus: { type: "string", description: "krátke zameranie dňa" },
+  ...DAY_COORD_PROPS,
   exercises: {
     type: "array",
     items: { type: "object", properties: EX_PROPS, required: EX_REQUIRED, additionalProperties: false },
   },
 };
-const DAY_REQUIRED = ["title", "focus", "exercises"];
+const DAY_REQUIRED = ["title", "focus", "dayOfWeek", "estimatedDurationMin", "estimatedRpe", "exercises"];
 
 const PROGRAM_SCHEMA = {
   type: "object",
@@ -79,10 +92,10 @@ PERIODIZÁCIA PODĽA FÁZY (kľúčové – urči fázu z dátumov):
 - Sezóna (in-season): udržiavací režim, menší objem, dôraz na silu/výbušnosť a regeneráciu, aby tréning nezhoršil zápasový výkon.
 
 PRAVIDLÁ:
-- Vytvor presne toľko tréningových dní, koľko chodí do gymu (gymDaysPerWeek). Ak nie je uvedené, daj 3–4.
+- Počet tréningových dní urči podľa rozpočtu v sekcii KOORDINÁCIA TÝŽDENNÉHO PROGRAMU nižšie (nie podľa vlastného odhadu).
 - NEDÁVAJ ťažké nohy tesne pred futbalovým tréningom/zápasom – rozlož záťaž podľa rozvrhu.
-- Futbalové TÍMOVÉ tréningy a zápasy z rozvrhu sú FIXNÉ – NEMEŇ ich. Gym dni rozvrhni na OSTATNÉ dni v týždni.
-- Ku každému gym dňu priraď KONKRÉTNY deň v týždni priamo do "title" (napr. "Pondelok – Dolná časť (sila)").
+- Futbalové TÍMOVÉ tréningy a zápasy z rozvrhu sú FIXNÉ – NEMEŇ ich. Gym dni rozvrhni na OSTATNÉ dni v týždni, podľa KOORDINÁCIE aj mimo dní, ktoré už zabral futbalový individuálny modul.
+- Ku každému gym dňu priraď KONKRÉTNY deň v týždni priamo do "title" (napr. "Pondelok – Dolná časť (sila)") AJ do štruktúrovaného poľa "dayOfWeek".
 - Neuvádzaj konkrétne kalórie ani makrá – tie rieši samostatný jedálniček.
 - Zaraď: viackĺbové cviky (drep, mŕtvy ťah, tlaky, príťahy), posteriorný reťazec (hamstringy, sedacie – dôležité pre šprint a prevenciu), unilaterálne cviky (výpady, bulharské drepy), výbušnosť/plyometria (pre futbal), core a prevenciu (členky, kolená).
 - Ku každému cviku: série, opakovania, intenzita (RPE alebo % 1RM), odpočinok a krátka poznámka.
@@ -124,15 +137,24 @@ function ageFrom(birth: Date | null | undefined): number | null {
   return a >= 0 && a < 130 ? a : null;
 }
 
-async function gatherAthleteContext(userId: string, startDateStr?: string): Promise<string> {
+async function gatherAthleteContext(
+  userId: string,
+  kind: "GYM" | "FOOTBALL",
+  startDateStr?: string,
+): Promise<string> {
   const todayStr = new Date().toISOString().slice(0, 10);
   const start = startDateStr ?? todayStr;
   const startDow = new Date(`${start}T12:00:00Z`).getUTCDay();
+  const selfOrigin = kind === "GYM" ? "AI_GYM" : "AI_FOOTBALL";
+  const siblingOrigin = kind === "GYM" ? "AI_FOOTBALL" : "AI_GYM";
+  const siblingLabel = kind === "GYM" ? "Futbal (individuálne)" : "Fitness (gym)";
 
-  const [user, goal, events] = await Promise.all([
+  const [user, goal, events, siblingEvents] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId } }),
     prisma.goal.findFirst({ where: { userId, validTo: null }, orderBy: { validFrom: "desc" } }),
-    prisma.scheduleEvent.findMany({ where: { userId } }),
+    // Vlastné predošlé AI dni vynechávame – o chvíľu sa prepíšu, nemajú pôsobiť ako fixné.
+    prisma.scheduleEvent.findMany({ where: { userId, origin: { not: selfOrigin } } }),
+    prisma.scheduleEvent.findMany({ where: { userId, origin: siblingOrigin } }),
   ]);
 
   const lines: string[] = [];
@@ -145,7 +167,6 @@ async function gatherAthleteContext(userId: string, startDateStr?: string): Prom
   );
   lines.push(`- Cieľ: ${GOAL_SK[goal?.type ?? ""] ?? "udržanie + výkon"}`);
   lines.push(`- Skúsenosti v posilňovni: ${user?.trainingExperience || "neuvedené"}`);
-  lines.push(`- Počet gym tréningov/týždeň (vytvor toľko dní): ${user?.gymDaysPerWeek ?? "neuvedené (daj 3–4)"}`);
   lines.push("");
   lines.push("FUTBAL:");
   lines.push(`- Liga: ${user?.footballLeague || "neuvedené"}, Post: ${user?.footballPosition || "neuvedené"}`);
@@ -182,6 +203,28 @@ async function gatherAthleteContext(userId: string, startDateStr?: string): Prom
       );
     }
   }
+  lines.push("");
+
+  const totalExtraDays = user?.extraTrainingDaysPerWeek ?? 4;
+  const remainingBudget = Math.max(1, totalExtraDays - siblingEvents.length);
+  lines.push("KOORDINÁCIA TÝŽDENNÉHO PROGRAMU (dôležité – rešpektuj presne):");
+  lines.push(
+    `- Celkový rozpočet tréningov NAVYŠE mimo klubu/zápasu za týždeň: ${totalExtraDays}${
+      user?.extraTrainingDaysPerWeek == null ? " (neuvedené, použitý predvolený)" : ""
+    }`,
+  );
+  if (siblingEvents.length > 0) {
+    lines.push(`- Modul "${siblingLabel}" už zabral z tohto rozpočtu tieto dni:`);
+    for (const e of siblingEvents) {
+      const day = e.dayOfWeek != null ? SK_DAYS[e.dayOfWeek] : "?";
+      lines.push(`  - ${day}: ${e.title || e.gymFocus || "tréning"}`);
+    }
+  } else {
+    lines.push(`- Modul "${siblingLabel}" zatiaľ nemá vygenerovaný žiadny deň.`);
+  }
+  lines.push(
+    `- TENTO modul môže použiť NAJVIAC ${remainingBudget} deň/dni z rozpočtu. Pokiaľ možno, vyber INÉ dni ako "${siblingLabel}", aby sa záťaž v týždni rozložila rovnomerne a nestackovala na jeden deň.`,
+  );
   lines.push("");
 
   const upcomingMatches = events
@@ -241,7 +284,7 @@ export async function generateGymProgram(
   userId: string,
   startDateStr?: string,
 ): Promise<{ program: AiProgram; context: string; model: string }> {
-  const context = await gatherAthleteContext(userId, startDateStr);
+  const context = await gatherAthleteContext(userId, "GYM", startDateStr);
 
   const res = await anthropic.messages.create({
     model: MODEL,
@@ -264,7 +307,14 @@ export async function generateGymProgram(
 /* ── FUTBAL modul ─────────────────────────────────────── */
 
 export type AiDrill = { name: string; detail: string };
-export type AiFootballSession = { day: string; title: string; focus: string; drills: AiDrill[] };
+export type AiFootballSession = {
+  dayOfWeek: number;
+  title: string;
+  focus: string;
+  estimatedDurationMin: number;
+  estimatedRpe: number;
+  drills: AiDrill[];
+};
 export type AiFootballPlan = {
   teamTrainingFocus: string[];
   individualSessions: AiFootballSession[];
@@ -294,12 +344,12 @@ const DRILL_SCHEMA = {
 const SESSION_SCHEMA = {
   type: "object",
   properties: {
-    day: { type: "string", description: "deň, napr. 'Utorok' alebo 'Voľný deň'" },
     title: { type: "string", description: "názov individuálneho tréningu" },
     focus: { type: "string", description: "krátke zameranie" },
+    ...DAY_COORD_PROPS,
     drills: { type: "array", items: DRILL_SCHEMA },
   },
-  required: ["day", "title", "focus", "drills"],
+  required: ["title", "focus", "dayOfWeek", "estimatedDurationMin", "estimatedRpe", "drills"],
   additionalProperties: false,
 };
 const FOOTBALL_SCHEMA = {
@@ -355,8 +405,9 @@ AKTUÁLNY STAV / BOLESTI (ak je uvedený):
 - V "guidance" napíš najpravdepodobnejšiu príčinu, ako postupovať a čím regenerovať, a KEDY vyhľadať lekára/fyzioterapeuta (opuch, ostrá bolesť, nelepší sa). VŽDY dodaj, že to nie je lekárska diagnóza.
 
 ROZVRH (dôležité):
-- Futbalové TÍMOVÉ tréningy a zápasy z rozvrhu sú FIXNÉ – NEMEŇ ich. Individuálne tréningy rozvrhni na OSTATNÉ dni tak, aby si nebol unavený pred tímovým tréningom/zápasom.
-- "day" = KRÁTKY názov dňa (napr. "Utorok" alebo "Voľný deň"). Časovanie a detaily daj do "title"/"focus", NIE do "day".
+- Futbalové TÍMOVÉ tréningy a zápasy z rozvrhu sú FIXNÉ – NEMEŇ ich. Individuálne tréningy rozvrhni na OSTATNÉ dni tak, aby si nebol unavený pred tímovým tréningom/zápasom, a podľa KOORDINÁCIE aj mimo dní, ktoré už zabral gym modul.
+- Počet individuálnych tréningov urči podľa rozpočtu v sekcii KOORDINÁCIA TÝŽDENNÉHO PROGRAMU nižšie (nie podľa vlastného odhadu).
+- Každej session priraď presný "dayOfWeek" (0=nedeľa…6=sobota). Časovanie a detaily daj do "title"/"focus".
 - NEPREDpisuj klasický posilňovací/gym tréning (drepy, mŕtvy ťah, tlaky s činkami…) – SILU a gym rieši SAMOSTATNÝ Fitness modul. Ty sa venuj len FUTBALU: technika, práca s loptou, šprinty, výbušnosť, agility, kondícia, regenerácia. Gym dni nechaj na Fitness modul.
 - Neuvádzaj konkrétne kalórie ani makrá – tie rieši samostatný jedálniček.
 
@@ -373,7 +424,7 @@ export async function generateFootballPlan(
   userId: string,
   startDateStr?: string,
 ): Promise<{ result: AiFootballResult; context: string; model: string }> {
-  const context = await gatherAthleteContext(userId, startDateStr);
+  const context = await gatherAthleteContext(userId, "FOOTBALL", startDateStr);
 
   const res = await anthropic.messages.create({
     model: MODEL,

@@ -1,6 +1,40 @@
 import { prisma } from "./prisma";
 import { generateGymProgram, generateFootballPlan, type AiFootballPlan } from "./training-ai";
 
+// Mapuje odhadované RPE AI programu na Intensity enum rozvrhu.
+function intensityFromRpe(rpe: number): "LOW" | "MEDIUM" | "HIGH" {
+  if (rpe <= 4) return "LOW";
+  if (rpe <= 7) return "MEDIUM";
+  return "HIGH";
+}
+
+// Zapíše dni AI programu (gym alebo futbal individuálne) do Rozvrhu ako opakujúce sa udalosti,
+// aby sa reálne počítali do TDEE/makier aj do týždennej záťaže a upozornení (nielen do modulu samého).
+// Pri každej regenerácii najprv zmaže predošlé AI-zapísané dni rovnakého pôvodu (manuálne udalosti nechá).
+async function syncScheduleFromProgram(
+  userId: string,
+  origin: "AI_GYM" | "AI_FOOTBALL",
+  eventType: "GYM" | "FOOTBALL_TRAINING",
+  days: { dayOfWeek: number; title: string; focus: string | null; durationMin: number; rpe: number }[],
+): Promise<void> {
+  await prisma.scheduleEvent.deleteMany({ where: { userId, origin } });
+  if (days.length === 0) return;
+  await prisma.scheduleEvent.createMany({
+    data: days.map((d) => ({
+      userId,
+      type: eventType,
+      title: d.title,
+      gymFocus: eventType === "GYM" ? d.focus : null,
+      intensity: intensityFromRpe(d.rpe),
+      isRecurring: true,
+      dayOfWeek: d.dayOfWeek,
+      durationMin: d.durationMin,
+      rpe: d.rpe,
+      origin,
+    })),
+  });
+}
+
 function startDateFor(offset: number): string {
   const d = new Date();
   d.setDate(d.getDate() + offset);
@@ -24,6 +58,7 @@ export type DayDTO = {
   dayIndex: number;
   title: string;
   focus: string | null;
+  dayOfWeek: number | null;
   exercises: ExerciseDTO[];
 };
 export type ProgramDTO = {
@@ -96,6 +131,7 @@ export async function getActiveProgram(
       dayIndex: d.dayIndex,
       title: d.title,
       focus: d.focus,
+      dayOfWeek: d.dayOfWeek,
       exercises: d.exercises.map((e) => ({
         id: e.id,
         name: e.name,
@@ -140,6 +176,7 @@ export async function generateAndSaveGymProgram(
             dayIndex: di + 1,
             title: d.title,
             focus: d.focus,
+            dayOfWeek: d.dayOfWeek,
             sortOrder: di,
             exercises: {
               create: d.exercises.map((e, ei) => ({
@@ -157,6 +194,19 @@ export async function generateAndSaveGymProgram(
       },
     });
   });
+
+  await syncScheduleFromProgram(
+    userId,
+    "AI_GYM",
+    "GYM",
+    program.days.map((d) => ({
+      dayOfWeek: d.dayOfWeek,
+      title: d.title,
+      focus: d.focus,
+      durationMin: d.estimatedDurationMin,
+      rpe: d.estimatedRpe,
+    })),
+  );
 
   const saved = await getActiveProgram(userId, "GYM");
   if (!saved) throw new Error("Program sa nepodarilo načítať.");
@@ -191,6 +241,19 @@ export async function generateAndSaveFootballProgram(
       },
     });
   });
+
+  await syncScheduleFromProgram(
+    userId,
+    "AI_FOOTBALL",
+    "FOOTBALL_TRAINING",
+    result.plan.individualSessions.map((s) => ({
+      dayOfWeek: s.dayOfWeek,
+      title: s.title,
+      focus: s.focus,
+      durationMin: s.estimatedDurationMin,
+      rpe: s.estimatedRpe,
+    })),
+  );
 
   const saved = await getActiveProgram(userId, "FOOTBALL");
   if (!saved) throw new Error("Plán sa nepodarilo načítať.");

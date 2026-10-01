@@ -15,6 +15,7 @@ type WeekActivity = {
   rpe: number;
   load: number;
   isRecurring: boolean;
+  origin: string;
 };
 type WeekDay = {
   date: string;
@@ -250,9 +251,14 @@ export function WeeklyPlanScreen() {
                     onClick={() => setEdit({ date: d.date, activity: a })}
                     className="flex w-full items-center justify-between gap-2 rounded-xl bg-surface-2 px-3 py-2 text-left transition active:scale-[0.99]"
                   >
-                    <span className="min-w-0 truncate text-sm text-fg">
-                      {a.title || LABEL[a.type] || a.type}
-                      {a.startTime && <span className="ml-1.5 text-xs text-muted">{a.startTime}</span>}
+                    <span className="flex min-w-0 items-center gap-1.5 text-sm text-fg">
+                      <span className="truncate">{a.title || LABEL[a.type] || a.type}</span>
+                      {a.origin !== "MANUAL" && (
+                        <span className="shrink-0 rounded-full bg-accent/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-accent">
+                          AI
+                        </span>
+                      )}
+                      {a.startTime && <span className="shrink-0 text-xs text-muted">{a.startTime}</span>}
                     </span>
                     <span className="shrink-0 text-[11px] tabular-nums text-muted">
                       {a.minutes} min · RPE {a.rpe}
@@ -312,6 +318,12 @@ function ActivitySheet({
   return (
     <Sheet open onClose={onClose} title={activity ? "Upraviť aktivitu" : "Pridať aktivitu"}>
       <div className="space-y-4">
+        {activity && activity.origin !== "MANUAL" && (
+          <p className="rounded-xl bg-accent/[0.07] px-3 py-2.5 text-xs leading-relaxed text-muted ring-1 ring-inset ring-accent/15">
+            Toto zapísal AI {activity.origin === "AI_GYM" ? "gym" : "futbalový"} plán — pri ďalšom
+            generovaní v module {activity.origin === "AI_GYM" ? "Fitness" : "Futbal"} sa môže prepísať.
+          </p>
+        )}
         <div>
           <p className="label-caps mb-2">Typ aktivity</p>
           <div className="flex flex-wrap gap-1.5">

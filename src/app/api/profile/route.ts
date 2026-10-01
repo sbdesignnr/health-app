@@ -46,7 +46,7 @@ export async function GET() {
           seasonStartDate: user.seasonStartDate
             ? user.seasonStartDate.toISOString().slice(0, 10)
             : null,
-          gymDaysPerWeek: user.gymDaysPerWeek,
+          extraTrainingDaysPerWeek: user.extraTrainingDaysPerWeek,
           trainingExperience: user.trainingExperience,
           stepGoal: user.stepGoal,
           seasonGoals: user.seasonGoals,
@@ -91,7 +91,7 @@ export async function PUT(request: Request) {
     matchMinutes?: number | null;
     dominantFoot?: string | null;
     seasonStartDate?: string | null;
-    gymDaysPerWeek?: number | null;
+    extraTrainingDaysPerWeek?: number | null;
     trainingExperience?: string | null;
     stepGoal?: number | null;
     seasonGoals?: string | null;
@@ -191,7 +191,8 @@ export async function PUT(request: Request) {
     data.trainingExperience = strOrNull(b.trainingExperience, 40);
   if (b?.yearsPlaying !== undefined) data.yearsPlaying = intOrNull(b.yearsPlaying, 0, 60);
   if (b?.matchMinutes !== undefined) data.matchMinutes = intOrNull(b.matchMinutes, 0, 200);
-  if (b?.gymDaysPerWeek !== undefined) data.gymDaysPerWeek = intOrNull(b.gymDaysPerWeek, 0, 14);
+  if (b?.extraTrainingDaysPerWeek !== undefined)
+    data.extraTrainingDaysPerWeek = intOrNull(b.extraTrainingDaysPerWeek, 0, 7);
   if (b?.seasonStartDate !== undefined) data.seasonStartDate = dateOrNull(b.seasonStartDate);
   if (b?.stepGoal !== undefined) data.stepGoal = intOrNull(b.stepGoal, 0, 100000);
   if (b?.seasonGoals !== undefined) data.seasonGoals = strOrNull(b.seasonGoals, 600);
