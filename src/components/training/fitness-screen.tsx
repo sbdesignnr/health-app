@@ -55,6 +55,7 @@ function StartSwitch({ value, onChange }: { value: number; onChange: (n: number)
   );
 }
 
+type LoadSuggestion = { weightKg: number; reps: number; rationale: string };
 type Exercise = {
   id: string;
   name: string;
@@ -65,6 +66,7 @@ type Exercise = {
   notes: string | null;
   sortOrder: number;
   lastWeightKg: number | null;
+  suggestion: LoadSuggestion | null;
 };
 type Day = { id: string; dayIndex: number; title: string; focus: string | null; exercises: Exercise[] };
 type Program = {
@@ -99,6 +101,11 @@ function ExerciseRow({ e, onLog }: { e: Exercise; onLog: (e: Exercise) => void }
           {e.intensity ? ` · ${e.intensity}` : ""}
           {e.restSec ? ` · odpočinok ${e.restSec}s` : ""}
         </p>
+        {e.suggestion && (
+          <p className="mt-1 text-xs font-semibold text-accent">
+            👉 Skús {e.suggestion.weightKg} kg{e.suggestion.reps > 0 ? ` × ${e.suggestion.reps}` : ""}
+          </p>
+        )}
         {e.notes && <p className="mt-1 text-xs leading-relaxed text-muted">{e.notes}</p>}
         <a
           href={ytLink(`${e.name} cvik správna technika`)}
@@ -112,12 +119,18 @@ function ExerciseRow({ e, onLog }: { e: Exercise; onLog: (e: Exercise) => void }
       <button
         onClick={() => onLog(e)}
         className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold tabular-nums transition active:scale-95 ${
-          e.lastWeightKg != null
-            ? "bg-surface-3 text-white ring-1 ring-inset ring-border"
-            : "bg-accent/10 text-accent ring-1 ring-inset ring-accent/20"
+          e.suggestion
+            ? "bg-accent/10 text-accent ring-1 ring-inset ring-accent/20"
+            : e.lastWeightKg != null
+              ? "bg-surface-3 text-white ring-1 ring-inset ring-border"
+              : "bg-accent/10 text-accent ring-1 ring-inset ring-accent/20"
         }`}
       >
-        {e.lastWeightKg != null ? `${e.lastWeightKg} kg` : "+ váha"}
+        {e.suggestion
+          ? `${e.suggestion.weightKg} kg`
+          : e.lastWeightKg != null
+            ? `${e.lastWeightKg} kg`
+            : "+ váha"}
       </button>
     </div>
   );
@@ -265,7 +278,9 @@ export function FitnessScreen() {
             ...p,
             days: p.days.map((d) => ({
               ...d,
-              exercises: d.exercises.map((e) => (e.name === name ? { ...e, lastWeightKg: weightKg } : e)),
+              exercises: d.exercises.map((e) =>
+              e.name === name ? { ...e, lastWeightKg: weightKg, suggestion: null } : e,
+            ),
             })),
           }
         : p,

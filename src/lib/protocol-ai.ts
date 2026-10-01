@@ -145,7 +145,7 @@ export async function generateProtocol(userId: string, stateText: string): Promi
 
   const res = await anthropic.messages.create({
     model: MODEL,
-    max_tokens: 3000,
+    max_tokens: 8192,
     system: SYSTEM,
     output_config: { format: { type: "json_schema", schema: PROTOCOL_SCHEMA } },
     messages: [
@@ -154,10 +154,18 @@ export async function generateProtocol(userId: string, stateText: string): Promi
   });
 
   if (res.stop_reason === "refusal") throw new Error("AI odmietlo požiadavku.");
+  if (res.stop_reason === "max_tokens") {
+    throw new Error("Odpoveď AI bola príliš dlhá a orezala sa – skús to prosím znova.");
+  }
   const block = res.content.find((b) => b.type === "text");
   if (!block || block.type !== "text" || !block.text) throw new Error("AI nevrátilo odpoveď.");
 
-  const parsed = JSON.parse(block.text) as Omit<ProtocolResult, "model">;
+  let parsed: Omit<ProtocolResult, "model">;
+  try {
+    parsed = JSON.parse(block.text) as Omit<ProtocolResult, "model">;
+  } catch {
+    throw new Error("AI vrátilo poškodenú odpoveď – skús to prosím znova.");
+  }
   // strážne mantinely na dĺžku protokolu
   const durationDays = Math.max(5, Math.min(90, Math.round(parsed.durationDays || 21)));
   return { ...parsed, durationDays, model: MODEL };

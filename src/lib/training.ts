@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { generateGymProgram, generateFootballPlan, type AiFootballPlan } from "./training-ai";
+import { recentLogsByName, suggestNextLoad, type LoadSuggestion } from "./progressive-overload";
 
 // Mapuje odhadované RPE AI programu na Intensity enum rozvrhu.
 function intensityFromRpe(rpe: number): "LOW" | "MEDIUM" | "HIGH" {
@@ -52,6 +53,7 @@ export type ExerciseDTO = {
   notes: string | null;
   sortOrder: number;
   lastWeightKg: number | null;
+  suggestion: LoadSuggestion | null;
 };
 export type DayDTO = {
   id: string;
@@ -83,20 +85,6 @@ export type ExerciseLogDTO = {
   loggedAt: string;
 };
 
-// Mapa: názov cviku → posledná zapísaná váha (na rýchly prehľad progresu).
-async function lastWeightByName(userId: string): Promise<Map<string, number>> {
-  const logs = await prisma.exerciseLog.findMany({
-    where: { userId },
-    orderBy: { loggedAt: "desc" },
-    take: 400,
-  });
-  const map = new Map<string, number>();
-  for (const l of logs) {
-    if (!map.has(l.exerciseName)) map.set(l.exerciseName, l.weightKg);
-  }
-  return map;
-}
-
 export async function getActiveProgram(
   userId: string,
   kind: "GYM" | "FOOTBALL",
@@ -113,7 +101,7 @@ export async function getActiveProgram(
   });
   if (!program) return null;
 
-  const last = await lastWeightByName(userId);
+  const recent = await recentLogsByName(userId);
 
   return {
     id: program.id,
@@ -132,17 +120,21 @@ export async function getActiveProgram(
       title: d.title,
       focus: d.focus,
       dayOfWeek: d.dayOfWeek,
-      exercises: d.exercises.map((e) => ({
-        id: e.id,
-        name: e.name,
-        sets: e.sets,
-        reps: e.reps,
-        intensity: e.intensity,
-        restSec: e.restSec,
-        notes: e.notes,
-        sortOrder: e.sortOrder,
-        lastWeightKg: last.get(e.name) ?? null,
-      })),
+      exercises: d.exercises.map((e) => {
+        const exLogs = recent.get(e.name) ?? [];
+        return {
+          id: e.id,
+          name: e.name,
+          sets: e.sets,
+          reps: e.reps,
+          intensity: e.intensity,
+          restSec: e.restSec,
+          notes: e.notes,
+          sortOrder: e.sortOrder,
+          lastWeightKg: exLogs[0]?.weightKg ?? null,
+          suggestion: suggestNextLoad(exLogs, e.reps),
+        };
+      }),
     })),
   };
 }

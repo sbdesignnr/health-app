@@ -5,12 +5,15 @@ import { Sheet } from "@/components/ui/sheet";
 
 export type LogEntry = { id: string; weightKg: number; reps: number | null; note: string | null; loggedAt: string };
 
+export type LoadSuggestion = { weightKg: number; reps: number; rationale: string };
+
 export type LoggableExercise = {
   name: string;
   sets?: number | null;
   reps?: string | null;
   intensity?: string | null;
   lastWeightKg?: number | null;
+  suggestion?: LoadSuggestion | null;
 };
 
 function fmtDate(iso: string): string {
@@ -62,8 +65,16 @@ export function ExerciseLogSheet({
   onLogged: (name: string, weightKg: number) => void;
   onSubstitute?: (newName: string) => Promise<void>;
 }) {
-  const [weight, setWeight] = useState(exercise.lastWeightKg != null ? String(exercise.lastWeightKg) : "");
-  const [reps, setReps] = useState("");
+  const [weight, setWeight] = useState(
+    exercise.suggestion != null
+      ? String(exercise.suggestion.weightKg)
+      : exercise.lastWeightKg != null
+        ? String(exercise.lastWeightKg)
+        : "",
+  );
+  const [reps, setReps] = useState(
+    exercise.suggestion != null && exercise.suggestion.reps > 0 ? String(exercise.suggestion.reps) : "",
+  );
   const [note, setNote] = useState("");
   const [history, setHistory] = useState<LogEntry[]>([]);
   const [busy, setBusy] = useState(false);
@@ -145,6 +156,16 @@ export function ExerciseLogSheet({
             {exercise.sets ?? "?"} sérií × {exercise.reps ?? "?"}
             {exercise.intensity ? ` · ${exercise.intensity}` : ""}
           </p>
+        )}
+
+        {exercise.suggestion && (
+          <div className="rounded-2xl bg-accent/[0.07] px-4 py-3 ring-1 ring-inset ring-accent/20">
+            <p className="text-sm font-semibold text-accent">
+              👉 Skús {exercise.suggestion.weightKg} kg
+              {exercise.suggestion.reps > 0 ? ` × ${exercise.suggestion.reps}` : ""}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-muted">{exercise.suggestion.rationale}</p>
+          </div>
         )}
 
         <div className="flex gap-2">

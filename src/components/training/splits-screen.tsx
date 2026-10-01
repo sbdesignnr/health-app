@@ -6,6 +6,7 @@ import { Plus, ChevronDown, Pencil, Trash2, Dumbbell, X, GripVertical } from "lu
 import { Sheet } from "@/components/ui/sheet";
 import { ExerciseLogSheet, type LoggableExercise } from "./exercise-log-sheet";
 
+type LoadSuggestion = { weightKg: number; reps: number; rationale: string };
 type SplitExercise = {
   id: string;
   name: string;
@@ -14,6 +15,7 @@ type SplitExercise = {
   note: string | null;
   sortOrder: number;
   lastWeightKg: number | null;
+  suggestion: LoadSuggestion | null;
 };
 type Split = { id: string; name: string; note: string | null; sortOrder: number; exercises: SplitExercise[] };
 
@@ -57,7 +59,9 @@ export function SplitsScreen() {
     setSplits((prev) =>
       prev.map((s) => ({
         ...s,
-        exercises: s.exercises.map((e) => (e.name === name ? { ...e, lastWeightKg: weightKg } : e)),
+        exercises: s.exercises.map((e) =>
+          e.name === name ? { ...e, lastWeightKg: weightKg, suggestion: null } : e,
+        ),
       })),
     );
   }
@@ -136,6 +140,7 @@ export function SplitsScreen() {
                           sets: e.targetSets,
                           reps: e.targetReps,
                           lastWeightKg: e.lastWeightKg,
+                          suggestion: e.suggestion,
                         })
                       }
                       className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition active:bg-surface-2"
@@ -147,15 +152,27 @@ export function SplitsScreen() {
                             {e.targetSets ?? "?"} × {e.targetReps ?? "?"}
                           </p>
                         )}
+                        {e.suggestion && (
+                          <p className="mt-0.5 text-xs font-semibold text-accent">
+                            👉 Skús {e.suggestion.weightKg} kg
+                            {e.suggestion.reps > 0 ? ` × ${e.suggestion.reps}` : ""}
+                          </p>
+                        )}
                       </div>
                       <span
                         className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold tabular-nums transition ${
-                          e.lastWeightKg != null
-                            ? "bg-surface-3 text-white ring-1 ring-inset ring-border"
-                            : "bg-accent/10 text-accent ring-1 ring-inset ring-accent/20"
+                          e.suggestion
+                            ? "bg-accent/10 text-accent ring-1 ring-inset ring-accent/20"
+                            : e.lastWeightKg != null
+                              ? "bg-surface-3 text-white ring-1 ring-inset ring-border"
+                              : "bg-accent/10 text-accent ring-1 ring-inset ring-accent/20"
                         }`}
                       >
-                        {e.lastWeightKg != null ? `${e.lastWeightKg} kg` : "+ váha"}
+                        {e.suggestion
+                          ? `${e.suggestion.weightKg} kg`
+                          : e.lastWeightKg != null
+                            ? `${e.lastWeightKg} kg`
+                            : "+ váha"}
                       </span>
                     </button>
                   ))}

@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { recentLogsByName, suggestNextLoad, type LoadSuggestion, type RecentLog } from "./progressive-overload";
 
 export type SplitExerciseDTO = {
   id: string;
@@ -8,6 +9,7 @@ export type SplitExerciseDTO = {
   note: string | null;
   sortOrder: number;
   lastWeightKg: number | null;
+  suggestion: LoadSuggestion | null;
 };
 
 export type SplitDTO = {
@@ -17,18 +19,6 @@ export type SplitDTO = {
   sortOrder: number;
   exercises: SplitExerciseDTO[];
 };
-
-// Posledná zapísaná váha podľa názvu cviku (zdieľané s AI plánom – rovnaký názov = rovnaká história).
-async function lastWeightByName(userId: string): Promise<Map<string, number>> {
-  const logs = await prisma.exerciseLog.findMany({
-    where: { userId },
-    orderBy: { loggedAt: "desc" },
-    take: 500,
-  });
-  const map = new Map<string, number>();
-  for (const l of logs) if (!map.has(l.exerciseName)) map.set(l.exerciseName, l.weightKg);
-  return map;
-}
 
 type SplitRow = {
   id: string;
@@ -45,7 +35,7 @@ type SplitRow = {
   }[];
 };
 
-function toDTO(s: SplitRow, last: Map<string, number>): SplitDTO {
+function toDTO(s: SplitRow, recent: Map<string, RecentLog[]>): SplitDTO {
   return {
     id: s.id,
     name: s.name,
@@ -54,28 +44,32 @@ function toDTO(s: SplitRow, last: Map<string, number>): SplitDTO {
     exercises: s.exercises
       .slice()
       .sort((a, b) => a.sortOrder - b.sortOrder)
-      .map((e) => ({
-        id: e.id,
-        name: e.name,
-        targetSets: e.targetSets,
-        targetReps: e.targetReps,
-        note: e.note,
-        sortOrder: e.sortOrder,
-        lastWeightKg: last.get(e.name) ?? null,
-      })),
+      .map((e) => {
+        const exLogs = recent.get(e.name) ?? [];
+        return {
+          id: e.id,
+          name: e.name,
+          targetSets: e.targetSets,
+          targetReps: e.targetReps,
+          note: e.note,
+          sortOrder: e.sortOrder,
+          lastWeightKg: exLogs[0]?.weightKg ?? null,
+          suggestion: suggestNextLoad(exLogs, e.targetReps),
+        };
+      }),
   };
 }
 
 export async function listSplits(userId: string): Promise<SplitDTO[]> {
-  const [splits, last] = await Promise.all([
+  const [splits, recent] = await Promise.all([
     prisma.workoutSplit.findMany({
       where: { userId },
       include: { exercises: true },
       orderBy: { sortOrder: "asc" },
     }),
-    lastWeightByName(userId),
+    recentLogsByName(userId),
   ]);
-  return (splits as SplitRow[]).map((s) => toDTO(s, last));
+  return (splits as SplitRow[]).map((s) => toDTO(s, recent));
 }
 
 export async function createSplit(
@@ -101,8 +95,8 @@ export async function createSplit(
     },
     include: { exercises: true },
   });
-  const last = await lastWeightByName(userId);
-  return toDTO(created as SplitRow, last);
+  const recent = await recentLogsByName(userId);
+  return toDTO(created as SplitRow, recent);
 }
 
 async function ownsSplit(userId: string, splitId: string): Promise<boolean> {
