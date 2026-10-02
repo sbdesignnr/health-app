@@ -17,6 +17,7 @@ export type FavoriteMealDTO = {
   prepMinutes: number | null;
   priceEur: number | null;
   maxPerWeek: number | null;
+  isTreat: boolean;
   note: string | null;
   active: boolean;
 };
@@ -50,6 +51,7 @@ export const DEFAULT_FAVORITES: FavoriteInput[] = [
     maxPerWeek: null,
     note: null,
     active: true,
+    isTreat: false,
   },
   {
     name: "Omeleta zo 4 vajec s celozrnným chlebom a avokádom",
@@ -76,6 +78,7 @@ export const DEFAULT_FAVORITES: FavoriteInput[] = [
     maxPerWeek: null,
     note: null,
     active: true,
+    isTreat: false,
   },
   {
     name: "Grécky jogurt s vločkami, medom a ovocím",
@@ -97,6 +100,7 @@ export const DEFAULT_FAVORITES: FavoriteInput[] = [
     maxPerWeek: null,
     note: null,
     active: true,
+    isTreat: false,
   },
   {
     name: "Chrumkavé kuracie prsia s ryžou a miešaným šalátom",
@@ -122,6 +126,7 @@ export const DEFAULT_FAVORITES: FavoriteInput[] = [
     maxPerWeek: null,
     note: null,
     active: true,
+    isTreat: false,
   },
   {
     name: "Losos s opečenými zemiakmi a šalátom",
@@ -147,6 +152,7 @@ export const DEFAULT_FAVORITES: FavoriteInput[] = [
     maxPerWeek: null,
     note: null,
     active: true,
+    isTreat: false,
   },
   {
     name: "Hovädzí steak s opečenými zemiakmi a šalátom",
@@ -172,6 +178,7 @@ export const DEFAULT_FAVORITES: FavoriteInput[] = [
     maxPerWeek: null,
     note: null,
     active: true,
+    isTreat: false,
   },
   {
     name: "Bravčová panenka s opečenými zemiakmi a šalátom",
@@ -197,6 +204,7 @@ export const DEFAULT_FAVORITES: FavoriteInput[] = [
     maxPerWeek: null,
     note: null,
     active: true,
+    isTreat: false,
   },
   {
     name: "Butter chicken s garlic naan",
@@ -222,6 +230,7 @@ export const DEFAULT_FAVORITES: FavoriteInput[] = [
     maxPerWeek: null,
     note: null,
     active: true,
+    isTreat: false,
   },
   {
     name: "Bryndzové halušky so slaninou",
@@ -246,6 +255,7 @@ export const DEFAULT_FAVORITES: FavoriteInput[] = [
     maxPerWeek: 1,
     note: "Ťažké jedlo, vysoký GI – max 1× týždenne.",
     active: true,
+    isTreat: false,
   },
   {
     name: "Domáci burger s opečenými batátmi",
@@ -273,6 +283,7 @@ export const DEFAULT_FAVORITES: FavoriteInput[] = [
     maxPerWeek: null,
     note: null,
     active: true,
+    isTreat: false,
   },
   {
     name: "Zelené anti-akné smoothie",
@@ -296,6 +307,7 @@ export const DEFAULT_FAVORITES: FavoriteInput[] = [
     maxPerWeek: null,
     note: "Omega-3/zinok/antioxidanty – cielené na kožu.",
     active: true,
+    isTreat: false,
   },
   {
     name: "Regeneračné smoothie po tréningu",
@@ -319,6 +331,7 @@ export const DEFAULT_FAVORITES: FavoriteInput[] = [
     maxPerWeek: null,
     note: "Rýchle sacharidy + bielkoviny na doplnenie glykogénu.",
     active: true,
+    isTreat: false,
   },
 ];
 
@@ -338,6 +351,7 @@ function toDTO(m: {
   prepMinutes: number | null;
   priceEur: number | null;
   maxPerWeek: number | null;
+  isTreat: boolean;
   note: string | null;
   active: boolean;
 }): FavoriteMealDTO {
@@ -355,6 +369,7 @@ function toDTO(m: {
     prepMinutes: m.prepMinutes,
     priceEur: m.priceEur,
     maxPerWeek: m.maxPerWeek,
+    isTreat: m.isTreat,
     note: m.note,
     active: m.active,
   };
@@ -384,6 +399,7 @@ export async function createFavorite(userId: string, data: FavoriteInput): Promi
       prepMinutes: data.prepMinutes,
       priceEur: data.priceEur,
       maxPerWeek: data.maxPerWeek,
+      isTreat: data.isTreat,
       note: data.note,
       active: data.active,
     },
@@ -413,6 +429,7 @@ export async function updateFavorite(
       prepMinutes: data.prepMinutes === undefined ? undefined : data.prepMinutes,
       priceEur: data.priceEur === undefined ? undefined : data.priceEur,
       maxPerWeek: data.maxPerWeek === undefined ? undefined : data.maxPerWeek,
+      isTreat: data.isTreat ?? undefined,
       note: data.note === undefined ? undefined : data.note,
       active: data.active ?? undefined,
     },
@@ -443,6 +460,7 @@ export async function importDefaultFavorites(userId: string): Promise<number> {
       prepMinutes: f.prepMinutes,
       priceEur: f.priceEur,
       maxPerWeek: f.maxPerWeek,
+      isTreat: f.isTreat,
       note: f.note,
       active: f.active,
     })),

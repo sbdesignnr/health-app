@@ -24,6 +24,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (b.prepMinutes !== undefined) patch.prepMinutes = numOrNull(b.prepMinutes);
   if (b.priceEur !== undefined) patch.priceEur = numOrNull(b.priceEur);
   if (b.maxPerWeek !== undefined) patch.maxPerWeek = numOrNull(b.maxPerWeek);
+  if (b.isTreat !== undefined) patch.isTreat = !!b.isTreat;
   if (b.note !== undefined) patch.note = typeof b.note === "string" && b.note.trim() ? b.note.trim() : null;
   if (b.active !== undefined) patch.active = !!b.active;
 

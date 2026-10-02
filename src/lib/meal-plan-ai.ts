@@ -19,6 +19,7 @@ export type AiMealItem = {
   name: string;
   description: string;
   timeOfDay: string;
+  mealPrepAhead: boolean;
   ingredients: AiIngredient[];
   recipe: string[];
   portionG: number;
@@ -62,6 +63,11 @@ const ITEM_PROPS = {
     description:
       "čas jedla vo formáte HH:MM podľa fyziológie (prvé jedlo min. 60 min po zobudení, rozostupy 2.5–3.5 h, posledné min. 2–3 h pred spaním)",
   },
+  mealPrepAhead: {
+    type: "boolean",
+    description:
+      "true, ak v čase tohto jedla je preč z domu (podľa ROZVRHU DŇA) a jedlo sa NEDÁ uvariť čerstvo – musí sa dať pripraviť vopred a zjesť z krabičky",
+  },
   ingredients: {
     type: "array",
     items: INGREDIENT_SCHEMA,
@@ -83,6 +89,7 @@ const ITEM_REQUIRED = [
   "name",
   "description",
   "timeOfDay",
+  "mealPrepAhead",
   "ingredients",
   "recipe",
   "portionG",
@@ -174,6 +181,17 @@ ROTÁCIA A OBĽÚBENÉ JEDLÁ (KĽÚČOVÉ PRAVIDLO, ak NIE je aktívny protokol
 - ROTÁCIA: to isté jedlo nedávaj viac než 2× za týždeň. Rešpektuj limit „max za týždeň“, ak ho jedlo má.
 - PORCIE prispôsob dennej potrebe: tréningový deň = väčšie porcie sacharidov, voľný/regeneračný deň = menej sacharidov a viac zdravých tukov. Prepočítaj gramáže surovín aj makrá podľa upravenej porcie.
 - Ak je obľúbených jedál málo na pokrytie cieľa, radšej uprav porcie – nepridávaj cudzie jedlá.
+
+FILOZOFIA 80/20 (dôležité, cieľ je dlhodobo udržateľná strava, nie dokonalá diéta):
+- Jedlá v kontexte sú oznčené buď ako bežné, alebo ako "🍔 TREAT (fast food/odmena)".
+- TREAT jedlá zaraď max. 1× za 2–3 dni (orientačne do ~20 % jedál za týždeň) a NIKDY dve TREAT jedlá v jeden deň. Zvyšok (aspoň 80 %) musí byť z bežných/vyvážených jedál.
+- Ak dnešný deň už vyšiel na TREAT (pozri HISTÓRIU), nedávaj dnes ďalšie.
+- Aj TREAT jedlo prepočítaj na cieľové makrá a porciu – nejde o "voľný deň bez pravidiel", len o inú kategóriu chuti.
+
+ROZVRH DŇA / KEDY JE DOMA (meal prep):
+- Ak je v kontexte ROZVRH DŇA, zisti, v ktorom čase (timeOfDay) jedla NIE je doma (škola/práca) a kedy má obedovú pauzu.
+- Jedlo padajúce do času mimo domu NEMÔŽE byť niečo, čo treba variť na mieste – musí sa dať zjesť z krabičky (studené, alebo pri izbovej teplote dobré). Nastav mealPrepAhead=true a v "recipe" pridaj posledný krok typu "Pripraviť večer vopred (alebo v nedeľu na viac dní) a odniesť v krabičke."
+- Jedlá v čase, keď je doma, nech sú mealPrepAhead=false a variť sa môžu čerstvo.
 
 NÁKUPNÉ PREFERENCIE (POVINNÉ PRI KAŽDOM JEDLE):
 - Pri KAŽDEJ surovine uveď v zátvorke, kde ju kúpiť: (Lidl), (Kaufland) alebo (Yeme). Poradie priority: Lidl → Kaufland → Yeme.
@@ -270,6 +288,9 @@ async function gatherContext(userId: string, dateStr: string): Promise<GatheredC
   lines.push(
     `- Kvalita spánku (1–5): ${user?.sleepQuality ?? "?"}, Subjektívny stres (1–5): ${user?.stressLevel ?? "?"}`,
   );
+  lines.push("");
+  lines.push("ROZVRH DŇA (kedy nie je doma – podľa toho rozhodni meal prep):");
+  lines.push(user?.dailyScheduleNote?.trim() || "- neuvedený (predpokladaj, že je cez deň doma)");
   lines.push("");
   lines.push("ZDRAVIE (rob jedlá cielene na tieto veci):");
   lines.push(`- Problémy/zameranie: ${user?.healthConcerns?.length ? user.healthConcerns.join(", ") : "žiadne uvedené"}`);
@@ -399,7 +420,7 @@ async function gatherContext(userId: string, dateStr: string): Promise<GatheredC
         .filter(Boolean)
         .join(" · ");
       lines.push(
-        `- ${f.name} [${f.mealTypes.join("/") || "—"}] – ${Math.round(f.caloriesKcal)} kcal, B${Math.round(
+        `- ${f.isTreat ? "🍔 TREAT " : ""}${f.name} [${f.mealTypes.join("/") || "—"}] – ${Math.round(f.caloriesKcal)} kcal, B${Math.round(
           f.proteinG,
         )}/S${Math.round(f.carbsG)}/T${Math.round(f.fatG)}, porcia ${Math.round(f.portionG ?? 0)} g, ${
           f.prepMinutes ?? "?"

@@ -21,6 +21,7 @@ function parseInput(b: Record<string, unknown> | null): FavoriteInput | null {
     prepMinutes: numOrNull(b.prepMinutes),
     priceEur: numOrNull(b.priceEur),
     maxPerWeek: numOrNull(b.maxPerWeek),
+    isTreat: b.isTreat === true,
     note: typeof b.note === "string" && b.note.trim() ? b.note.trim().slice(0, 300) : null,
     active: b.active === false ? false : true,
   };

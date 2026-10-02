@@ -25,6 +25,7 @@ export type PlanItemDTO = {
   name: string;
   description: string | null;
   timeOfDay: string | null;
+  prepAhead: boolean;
   ingredients: AiIngredient[] | null;
   recipe: string[] | null;
   portionG: number | null;
@@ -64,6 +65,7 @@ type PlanRow = {
     name: string;
     description: string | null;
     timeOfDay: string | null;
+    prepAhead: boolean;
     ingredients: unknown;
     recipe: unknown;
     portionG: number | null;
@@ -95,6 +97,7 @@ function toDTO(plan: PlanRow): PlanDTO {
         name: i.name,
         description: i.description,
         timeOfDay: i.timeOfDay,
+        prepAhead: i.prepAhead,
         ingredients: (i.ingredients as AiIngredient[] | null) ?? null,
         recipe: (i.recipe as string[] | null) ?? null,
         portionG: i.portionG,
@@ -140,6 +143,7 @@ export async function generateAndSave(userId: string, dateStr: string): Promise<
             name: m.name,
             description: m.description,
             timeOfDay: m.timeOfDay,
+            prepAhead: m.mealPrepAhead,
             ingredients: m.ingredients,
             recipe: m.recipe,
             portionG: m.portionG,
@@ -174,6 +178,7 @@ export async function swapItem(userId: string, itemId: string): Promise<PlanItem
       name: i.name,
       description: i.description ?? "",
       timeOfDay: i.timeOfDay ?? "",
+      mealPrepAhead: i.prepAhead,
       ingredients: (i.ingredients as AiIngredient[] | null) ?? [],
       recipe: (i.recipe as string[] | null) ?? [],
       portionG: i.portionG ?? 0,
@@ -191,6 +196,7 @@ export async function swapItem(userId: string, itemId: string): Promise<PlanItem
       name: replacement.name,
       description: replacement.description,
       timeOfDay: replacement.timeOfDay,
+      prepAhead: replacement.mealPrepAhead,
       ingredients: replacement.ingredients,
       recipe: replacement.recipe,
       portionG: replacement.portionG,
@@ -207,6 +213,7 @@ export async function swapItem(userId: string, itemId: string): Promise<PlanItem
     name: updated.name,
     description: updated.description,
     timeOfDay: updated.timeOfDay,
+    prepAhead: updated.prepAhead,
     ingredients: (updated.ingredients as AiIngredient[] | null) ?? null,
     recipe: (updated.recipe as string[] | null) ?? null,
     portionG: updated.portionG,

@@ -22,6 +22,7 @@ export async function updateProfile(
     healthNotes?: string | null;
     wakeTime?: string | null;
     sleepTime?: string | null;
+    dailyScheduleNote?: string | null;
     stressLevel?: number | null;
     sleepQuality?: number | null;
     footballLeague?: string | null;
@@ -59,6 +60,7 @@ export async function updateProfile(
       healthNotes: data.healthNotes === undefined ? undefined : data.healthNotes,
       wakeTime: data.wakeTime === undefined ? undefined : data.wakeTime,
       sleepTime: data.sleepTime === undefined ? undefined : data.sleepTime,
+      dailyScheduleNote: data.dailyScheduleNote === undefined ? undefined : data.dailyScheduleNote,
       stressLevel: data.stressLevel === undefined ? undefined : data.stressLevel,
       sleepQuality: data.sleepQuality === undefined ? undefined : data.sleepQuality,
       footballLeague: data.footballLeague === undefined ? undefined : data.footballLeague,

@@ -132,6 +132,7 @@ type ProfileDraft = {
   foodRules: string;
   wakeTime: string;
   sleepTime: string;
+  dailyScheduleNote: string;
   stressLevel: number | null;
   sleepQuality: number | null;
   footballLeague: string;
@@ -313,6 +314,7 @@ export function ProfileScreen() {
   const [foodRules, setFoodRules] = useState("");
   const [wakeTime, setWakeTime] = useState("");
   const [sleepTime, setSleepTime] = useState("");
+  const [dailyScheduleNote, setDailyScheduleNote] = useState("");
   const [stressLevel, setStressLevel] = useState<number | null>(null);
   const [sleepQuality, setSleepQuality] = useState<number | null>(null);
   const [footballLeague, setFootballLeague] = useState("");
@@ -353,6 +355,7 @@ export function ProfileScreen() {
           setFoodRules(p.foodRules ?? "");
           setWakeTime(p.wakeTime ?? "");
           setSleepTime(p.sleepTime ?? "");
+          setDailyScheduleNote(p.dailyScheduleNote ?? "");
           setStressLevel(typeof p.stressLevel === "number" ? p.stressLevel : null);
           setSleepQuality(typeof p.sleepQuality === "number" ? p.sleepQuality : null);
           setFootballLeague(p.footballLeague ?? "");
@@ -396,6 +399,7 @@ export function ProfileScreen() {
           setFoodRules(draft.foodRules);
           setWakeTime(TIME_RE.test(draft.wakeTime) ? draft.wakeTime : "");
           setSleepTime(TIME_RE.test(draft.sleepTime) ? draft.sleepTime : "");
+          setDailyScheduleNote(draft.dailyScheduleNote);
           setStressLevel(draft.stressLevel);
           setSleepQuality(draft.sleepQuality);
           setFootballLeague(draft.footballLeague);
@@ -442,6 +446,7 @@ export function ProfileScreen() {
       foodRules,
       wakeTime,
       sleepTime,
+      dailyScheduleNote,
       stressLevel,
       sleepQuality,
       footballLeague,
@@ -478,6 +483,7 @@ export function ProfileScreen() {
     foodRules,
     wakeTime,
     sleepTime,
+    dailyScheduleNote,
     stressLevel,
     sleepQuality,
     footballLeague,
@@ -528,6 +534,7 @@ export function ProfileScreen() {
           foodRules: foodRules.trim() || null,
           wakeTime: wakeTime || null,
           sleepTime: sleepTime || null,
+          dailyScheduleNote: dailyScheduleNote.trim() || null,
           stressLevel,
           sleepQuality,
           footballLeague: footballLeague.trim() || null,
@@ -798,6 +805,20 @@ export function ProfileScreen() {
             />
           </Field>
         </div>
+
+        <Field label="Rozvrh dňa (škola/práca) — kedy nie si doma">
+          <textarea
+            value={dailyScheduleNote}
+            onChange={(e) => setDailyScheduleNote(e.target.value)}
+            rows={2}
+            placeholder="napr. Ut/St/Št 8:00–17:00 škola, Po/Pi 10:00–17:00, obed 11:30–13:00 každý deň"
+            className={`${inp} resize-none`}
+          />
+          <p className="text-[11px] leading-relaxed text-muted">
+            Appka podľa toho pozná, kedy nemáš ako variť čerstvo, a jedlo na tie chvíle navrhne tak, aby
+            sa dalo pripraviť vopred (meal prep).
+          </p>
+        </Field>
 
         <Field label="Kvalita spánku (1 = zlá, 5 = výborná)">
           <LevelPicker value={sleepQuality} onChange={setSleepQuality} />

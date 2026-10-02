@@ -15,6 +15,7 @@ import {
   ShoppingBasket,
   ChevronRight,
   HeartPulse,
+  Package,
 } from "lucide-react";
 import Link from "next/link";
 import { MEALS } from "@/components/food-log/types";
@@ -29,6 +30,7 @@ type PlanItem = {
   name: string;
   description: string | null;
   timeOfDay: string | null;
+  prepAhead: boolean;
   ingredients: Ingredient[] | null;
   recipe: string[] | null;
   portionG: number | null;
@@ -497,6 +499,11 @@ export function MealPlanScreen() {
                   {item.timeOfDay && (
                     <span className="flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-accent ring-1 ring-inset ring-accent/20">
                       <Clock className="h-3 w-3" strokeWidth={2.5} /> {item.timeOfDay}
+                    </span>
+                  )}
+                  {item.prepAhead && (
+                    <span className="flex items-center gap-1 rounded-full bg-warn/10 px-2 py-0.5 text-[11px] font-semibold text-warn ring-1 ring-inset ring-warn/25">
+                      <Package className="h-3 w-3" strokeWidth={2.5} /> Priprav vopred
                     </span>
                   )}
                 </div>

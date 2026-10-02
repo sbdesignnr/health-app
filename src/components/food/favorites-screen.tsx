@@ -30,6 +30,7 @@ type Favorite = {
   prepMinutes: number | null;
   priceEur: number | null;
   maxPerWeek: number | null;
+  isTreat: boolean;
   note: string | null;
   active: boolean;
 };
@@ -64,6 +65,7 @@ const EMPTY: Omit<Favorite, "id"> = {
   prepMinutes: null,
   priceEur: null,
   maxPerWeek: null,
+  isTreat: false,
   note: null,
   active: true,
 };
@@ -200,6 +202,9 @@ export function FavoritesScreen() {
               </span>
             )}
             {f.maxPerWeek != null && <span className="text-warn">max {f.maxPerWeek}×/týž.</span>}
+            {f.isTreat && (
+              <span className="rounded-full bg-warn/10 px-2 py-0.5 font-medium text-warn">🍔 treat (20 %)</span>
+            )}
           </div>
         </motion.button>
       ))}
@@ -352,6 +357,28 @@ function FavoriteSheet({
             className={inp}
           />
         </label>
+
+        <button
+          type="button"
+          onClick={() => setD({ ...d, isTreat: !d.isTreat })}
+          className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition active:scale-[0.99] ${
+            d.isTreat ? "border-warn/40 bg-warn/[0.08]" : "border-border bg-surface-2"
+          }`}
+        >
+          <span>
+            <span className="block text-sm font-medium text-fg">🍔 Treat jedlo (20 % kategória)</span>
+            <span className="block text-xs text-muted">
+              Fast food/odmena – appka ho dávkuje max. ~1× za 2–3 dni, nie ako základ jedálnička
+            </span>
+          </span>
+          <span
+            className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
+              d.isTreat ? "bg-warn text-black" : "bg-surface-3 text-muted"
+            }`}
+          >
+            {d.isTreat ? "Áno" : "Nie"}
+          </span>
+        </button>
 
         <label className="block space-y-1.5">
           <span className="label-caps">Poznámka</span>

@@ -36,6 +36,7 @@ export async function GET() {
           healthNotes: user.healthNotes,
           wakeTime: user.wakeTime,
           sleepTime: user.sleepTime,
+          dailyScheduleNote: user.dailyScheduleNote,
           stressLevel: user.stressLevel,
           sleepQuality: user.sleepQuality,
           footballLeague: user.footballLeague,
@@ -83,6 +84,7 @@ export async function PUT(request: Request) {
     healthNotes?: string | null;
     wakeTime?: string | null;
     sleepTime?: string | null;
+    dailyScheduleNote?: string | null;
     stressLevel?: number | null;
     sleepQuality?: number | null;
     footballLeague?: string | null;
@@ -181,6 +183,7 @@ export async function PUT(request: Request) {
   }
   if (b?.wakeTime !== undefined) data.wakeTime = timeOrNull(b.wakeTime);
   if (b?.sleepTime !== undefined) data.sleepTime = timeOrNull(b.sleepTime);
+  if (b?.dailyScheduleNote !== undefined) data.dailyScheduleNote = strOrNull(b.dailyScheduleNote, 500);
   if (b?.stressLevel !== undefined) data.stressLevel = level1to5(b.stressLevel);
   if (b?.sleepQuality !== undefined) data.sleepQuality = level1to5(b.sleepQuality);
   if (b?.footballLeague !== undefined) data.footballLeague = strOrNull(b.footballLeague, 60);
