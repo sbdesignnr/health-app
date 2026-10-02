@@ -1,6 +1,7 @@
 import { anthropic } from "./anthropic";
 import { prisma } from "./prisma";
 import { getEnergyBreakdown } from "./goals";
+import { evaluateAndAdjustCalories } from "./nutrition-autotune";
 
 const MODEL = "claude-opus-4-8";
 
@@ -48,6 +49,7 @@ const SCHEMA = {
 const SYSTEM = `Si skúsený športový kouč a nutričný špecialista. Vyhodnocuješ progres športovca (futbal + posilňovňa) za obdobie.
 Buď konkrétny, dátový a praktický – odporúčania majú byť akčné s číslami (nie vágne rady).
 Zohľadni cieľ (chudnutie/naberanie/udržanie) a nadviaž na predchádzajúce vyhodnotenia, ak sú.
+Ak je v kontexte uvedená AUTOMATICKÁ ÚPRAVA KALÓRIÍ, zahrň ju prirodzene do "weightAssessment" – vysvetli PREČO appka cieľ upravila (alebo prečo nie) na základe trendu váhy.
 Odpovedaj VÝHRADNE cez štruktúrovanú schému, po slovensky.`;
 
 const GOAL_SK: Record<string, string> = {
@@ -136,6 +138,10 @@ async function gatherStats(
 
 export async function generateEvaluation(userId: string, type: InsightType, endDateStr: string) {
   const { start, end, lastDay, days } = periodFor(type, endDateStr);
+  // Uzavretá slučka výživy (fáza 3): najprv (sekvenčne) prípadne uprav cieľ podľa trendu váhy,
+  // až POTOM počítaj breakdown/stats – nech týždenný súhrn ukazuje už aktualizovaný cieľ.
+  // Mesačné vyhodnotenie samo o sebe cieľ neupravuje (len týždenné, raz za cyklus).
+  const autotune = type === "WEEKLY" ? await evaluateAndAdjustCalories(userId) : null;
   const [stats, breakdown, prevInsights] = await Promise.all([
     gatherStats(userId, start, end, days),
     getEnergyBreakdown(userId),
@@ -162,6 +168,11 @@ export async function generateEvaluation(userId: string, type: InsightType, endD
     lines.push("- Váha: nedostatok záznamov v období");
   }
   lines.push("");
+  if (autotune) {
+    lines.push("AUTOMATICKÁ ÚPRAVA KALÓRIÍ TENTO TÝŽDEŇ:");
+    lines.push(autotune.note);
+    lines.push("");
+  }
   if (prevInsights.length) {
     lines.push("PREDCHÁDZAJÚCE VYHODNOTENIA (nadviaž, sleduj či sa odporúčania plnia):");
     for (const p of prevInsights) lines.push(`- ${p.summary ?? "(bez súhrnu)"}`);

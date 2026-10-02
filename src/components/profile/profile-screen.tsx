@@ -30,6 +30,8 @@ type Breakdown = {
   tdee: number | null;
   goalType: GoalType;
   adjustmentPct: number;
+  calorieAdjustmentKcal: number;
+  calorieAdjustmentNote: string | null;
   targets: { caloriesKcal: number; proteinG: number; carbsG: number; fatG: number; isDefault: boolean };
 };
 
@@ -262,7 +264,18 @@ function BreakdownCard({ breakdown }: { breakdown: Breakdown | null }) {
           <Row label="+ denná aktivita (NEAT)" value={`${breakdown.baselineTdee} kcal`} />
           <Row label="+ tréningy (dnes)" value={`${breakdown.trainingKcal} kcal`} />
           <Row label="= TDEE" value={`${breakdown.tdee} kcal`} strong />
+          {breakdown.calorieAdjustmentKcal !== 0 && (
+            <Row
+              label="auto-úprava (trend váhy)"
+              value={`${breakdown.calorieAdjustmentKcal > 0 ? "+" : ""}${breakdown.calorieAdjustmentKcal} kcal`}
+            />
+          )}
           <Row label={`cieľ (${pct(breakdown.adjustmentPct)})`} value={`${breakdown.targets.caloriesKcal} kcal`} strong />
+          {breakdown.calorieAdjustmentKcal !== 0 && breakdown.calorieAdjustmentNote && (
+            <p className="pt-1 text-xs leading-relaxed text-muted">
+              Appka upravuje cieľ automaticky raz týždenne podľa trendu váhy — {breakdown.calorieAdjustmentNote}
+            </p>
+          )}
         </div>
       ) : (
         <p className="relative mt-3 rounded-xl bg-surface-2 px-3 py-2.5 text-sm text-muted">

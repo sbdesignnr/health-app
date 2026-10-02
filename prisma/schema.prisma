@@ -172,6 +172,8 @@ model Goal {
   targetProteinG Int?
   targetCarbsG   Int?
   targetFatG     Int?
+  calorieAdjustmentKcal Int     @default(0) // auto-úprava podľa trendu váhy (fáza 3), pripočíta sa k TDEE cieľu
+  calorieAdjustmentNote String? // dôvod poslednej auto-úpravy (na zobrazenie v appke)
   validFrom      DateTime  @default(now())
   validTo        DateTime? // null = aktuálne platný
   note           String?

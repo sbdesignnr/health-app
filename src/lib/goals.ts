@@ -28,6 +28,8 @@ export type EnergyBreakdown = {
   tdee: number | null;
   goalType: GoalType;
   adjustmentPct: number;
+  calorieAdjustmentKcal: number;
+  calorieAdjustmentNote: string | null;
   targets: DailyTargets;
 };
 
@@ -46,7 +48,7 @@ export async function getEnergyBreakdown(userId: string, dateStr?: string): Prom
   const goalType = (goal?.type ?? "MAINTAIN_PERFORMANCE") as GoalType;
   const adjustmentPct = GOAL_ADJUSTMENT[goalType];
 
-  // 1) Explicitný custom cieľ (zadané kalórie) – má prednosť.
+  // 1) Explicitný custom cieľ (zadané kalórie) – má prednosť, auto-úprava sa sem nemieša.
   if (goal?.targetCalories != null) {
     return {
       complete: true,
@@ -57,6 +59,8 @@ export async function getEnergyBreakdown(userId: string, dateStr?: string): Prom
       tdee: null,
       goalType,
       adjustmentPct,
+      calorieAdjustmentKcal: 0,
+      calorieAdjustmentNote: null,
       targets: {
         caloriesKcal: goal.targetCalories,
         proteinG: goal.targetProteinG ?? DEFAULT_TARGETS.proteinG,
@@ -90,6 +94,8 @@ export async function getEnergyBreakdown(userId: string, dateStr?: string): Prom
       tdee: null,
       goalType,
       adjustmentPct,
+      calorieAdjustmentKcal: 0,
+      calorieAdjustmentNote: null,
       targets: { ...DEFAULT_TARGETS, isDefault: true },
     };
   }
@@ -107,7 +113,8 @@ export async function getEnergyBreakdown(userId: string, dateStr?: string): Prom
   const actualBurn = await getDayActualBurnKcal(userId, dateStr);
   const trainingKcal = actualBurn ?? estimatedBurn;
   const tdee = baseline + trainingKcal;
-  const caloriesKcal = targetCaloriesFromTdee(tdee, goalType);
+  const calorieAdjustmentKcal = goal?.calorieAdjustmentKcal ?? 0;
+  const caloriesKcal = targetCaloriesFromTdee(tdee, goalType) + calorieAdjustmentKcal;
   const macros = macroTargets({ caloriesKcal, weightKg: user.currentWeightKg, goalType });
 
   return {
@@ -119,6 +126,8 @@ export async function getEnergyBreakdown(userId: string, dateStr?: string): Prom
     tdee,
     goalType,
     adjustmentPct,
+    calorieAdjustmentKcal,
+    calorieAdjustmentNote: goal?.calorieAdjustmentNote ?? null,
     targets: { caloriesKcal, ...macros, isDefault: false },
   };
 }
