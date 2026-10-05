@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { netTrainingBurnKcal } from "./energy";
+import { regenerateProgramsAfterMatchChange } from "./training";
 
 export type EventType = "FOOTBALL_TRAINING" | "GYM" | "MATCH" | "REST" | "CUSTOM";
 export type Intensity = "LOW" | "MEDIUM" | "HIGH";
@@ -103,7 +104,7 @@ export async function listEvents(userId: string): Promise<ScheduleEventDTO[]> {
 }
 
 export async function createEvent(userId: string, input: EventInput) {
-  return prisma.scheduleEvent.create({
+  const created = await prisma.scheduleEvent.create({
     data: {
       userId,
       type: input.type,
@@ -117,12 +118,15 @@ export async function createEvent(userId: string, input: EventInput) {
       durationMin: input.durationMin,
     },
   });
+  // Nový/presunutý zápas mení taperovanie – prepočítaj aktívne tréningové plány.
+  if (input.type === "MATCH") await regenerateProgramsAfterMatchChange(userId);
+  return created;
 }
 
 export async function updateEvent(userId: string, id: string, input: EventInput) {
   const ev = await prisma.scheduleEvent.findFirst({ where: { id, userId } });
   if (!ev) throw new Error("Udalosť neexistuje.");
-  return prisma.scheduleEvent.update({
+  const updated = await prisma.scheduleEvent.update({
     where: { id },
     data: {
       type: input.type,
@@ -136,10 +140,14 @@ export async function updateEvent(userId: string, id: string, input: EventInput)
       durationMin: input.durationMin,
     },
   });
+  if (ev.type === "MATCH" || input.type === "MATCH") await regenerateProgramsAfterMatchChange(userId);
+  return updated;
 }
 
 export async function deleteEvent(userId: string, id: string) {
+  const ev = await prisma.scheduleEvent.findFirst({ where: { id, userId } });
   await prisma.scheduleEvent.deleteMany({ where: { id, userId } });
+  if (ev?.type === "MATCH") await regenerateProgramsAfterMatchChange(userId);
 }
 
 // Validácia vstupu z API (bez `any`).

@@ -128,6 +128,7 @@ model User {
   dominantFoot       String? // "left" | "right" | "both"
   seasonStartDate    DateTime? @db.Date // začiatok sezóny
   extraTrainingDaysPerWeek Int? // koľko tréningov NAVYŠE mimo klubu chce (gym + futbal individuálne spolu)
+  workingSetsPerExercise   Int? // koľko PRACOVNÝCH sérií na cvik chce v gyme (bez rozcvičky), default 2
   trainingExperience String? // "začiatočník" | "pokročilý"...
   seasonGoals        String? // ciele do nasledujúcej sezóny
   strengths          String? // silné stránky (futbal/kondícia)
@@ -462,15 +463,17 @@ model ProgramDay {
 }
 
 model ProgramExercise {
-  id        String  @id @default(uuid()) @db.Uuid
-  dayId     String  @db.Uuid
-  name      String
-  sets      Int
-  reps      String // "8–10", "5", "AMRAP"
-  intensity String? // "RPE 8", "75% 1RM"
-  restSec   Int?
-  notes     String?
-  sortOrder Int     @default(0)
+  id         String  @id @default(uuid()) @db.Uuid
+  dayId      String  @db.Uuid
+  name       String
+  warmupSets Int? // rozcvičovacie série (ľahšia váha, nepočíta sa do objemu)
+  sets       Int // PRACOVNÉ série (hlavná záťaž)
+  reps       String // "8–10", "5", "AMRAP"
+  intensity  String? // "RPE 8", "75% 1RM"
+  restSec    Int?
+  notes      String?
+  rationale  String? // prečo presne tento cvik (viazané na cieľ/post/slabiny)
+  sortOrder  Int     @default(0)
 
   day ProgramDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
 

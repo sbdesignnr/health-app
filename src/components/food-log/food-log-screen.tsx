@@ -9,7 +9,7 @@ import { EditLogSheet } from "./edit-log-sheet";
 import { GreetingHeader } from "./greeting-header";
 import { HydrationBar } from "./hydration-bar";
 import Link from "next/link";
-import { CalendarRange, ChevronRight } from "lucide-react";
+import { CalendarRange, ChevronLeft, ChevronRight } from "lucide-react";
 import { StepsCard } from "./steps-card";
 import { MorningCheckin } from "@/components/checkin/morning-checkin";
 import { getCached, setCached } from "@/lib/client-cache";
@@ -40,18 +40,28 @@ function DnesSkeleton() {
   );
 }
 
+function dayNavLabel(offset: number, date: string): string {
+  if (offset === 0) return "Dnes";
+  if (offset === -1) return "Včera";
+  if (offset === 1) return "Zajtra";
+  const [, m, d] = date.split("-");
+  return `${Number(d)}.${Number(m)}.`;
+}
+
 export function FoodLogScreen({ name }: { name: string | null }) {
   const reduce = useReducedMotion();
+  const [dayOffset, setDayOffset] = useState(0);
 
   const range = useMemo(() => {
     const start = new Date();
+    start.setDate(start.getDate() + dayOffset);
     start.setHours(0, 0, 0, 0);
     const end = new Date(start);
     end.setDate(end.getDate() + 1);
     const p = (n: number) => String(n).padStart(2, "0");
     const date = `${start.getFullYear()}-${p(start.getMonth() + 1)}-${p(start.getDate())}`;
     return { from: start.toISOString(), to: end.toISOString(), date };
-  }, []);
+  }, [dayOffset]);
 
   const dayKey = `day:${range.date}`;
   const wxKey = `wx:${range.date}`;
@@ -124,8 +134,32 @@ export function FoodLogScreen({ name }: { name: string | null }) {
       animate="show"
       className="space-y-6 pb-4 pt-3"
     >
+      <motion.div variants={fade} className="flex items-center justify-between">
+        <button
+          onClick={() => setDayOffset((o) => o - 1)}
+          aria-label="Predchádzajúci deň"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-surface-2 text-muted transition active:scale-90"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <span className="text-xs font-medium text-muted">{dayNavLabel(dayOffset, range.date)}</span>
+        <button
+          onClick={() => setDayOffset((o) => Math.min(0, o + 1))}
+          disabled={dayOffset >= 0}
+          aria-label="Nasledujúci deň"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-surface-2 text-muted transition active:scale-90 disabled:opacity-40"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </motion.div>
+
       <motion.div variants={fade}>
-        <GreetingHeader name={name} weather={weather?.current ?? null} />
+        <GreetingHeader
+          name={name}
+          weather={weather?.current ?? null}
+          viewDate={range.date}
+          isToday={dayOffset === 0}
+        />
       </motion.div>
 
       <motion.div variants={fade}>
@@ -171,6 +205,7 @@ export function FoodLogScreen({ name }: { name: string | null }) {
       {addMeal && (
         <AddFoodSheet
           meal={addMeal}
+          date={range.date}
           recent={data.recent}
           onClose={() => setAddMeal(null)}
           onAdded={load}

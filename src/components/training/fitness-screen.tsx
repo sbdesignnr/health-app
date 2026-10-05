@@ -59,11 +59,13 @@ type LoadSuggestion = { weightKg: number; reps: number; rationale: string };
 type Exercise = {
   id: string;
   name: string;
+  warmupSets: number | null;
   sets: number;
   reps: string;
   intensity: string | null;
   restSec: number | null;
   notes: string | null;
+  rationale: string | null;
   sortOrder: number;
   lastWeightKg: number | null;
   suggestion: LoadSuggestion | null;
@@ -95,12 +97,19 @@ function ExerciseRow({ e, onLog }: { e: Exercise; onLog: (e: Exercise) => void }
       <div className="min-w-0">
         <p className="text-sm font-semibold text-fg">{e.name}</p>
         <p className="mt-0.5 text-xs text-muted">
+          {e.warmupSets ? <span className="tabular-nums">{e.warmupSets}× rozcvička + </span> : ""}
           <span className="tabular-nums text-fg">
-            {e.sets} × {e.reps}
+            {e.sets} pracovné × {e.reps}
           </span>
           {e.intensity ? ` · ${e.intensity}` : ""}
           {e.restSec ? ` · odpočinok ${e.restSec}s` : ""}
         </p>
+        {e.rationale && (
+          <p className="mt-1 text-xs leading-relaxed text-muted">
+            <span className="font-medium text-fg">Prečo: </span>
+            {e.rationale}
+          </p>
+        )}
         {e.suggestion && (
           <p className="mt-1 text-xs font-semibold text-accent">
             👉 Skús {e.suggestion.weightKg} kg{e.suggestion.reps > 0 ? ` × ${e.suggestion.reps}` : ""}

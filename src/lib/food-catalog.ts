@@ -92,6 +92,8 @@ export const FOOD_CATALOG: CatalogFood[] = [
   // ── Zelenina ──────────────────────────────────────────
   { slug: "paradajka", name: "Paradajka", category: "vegetable", base: "g", kcal: 18, protein: 0.9, carbs: 3.9, fat: 0.2, units: [{ label: "ks stredná", grams: 120 }], aliases: ["paradajky", "rajcina"] },
   { slug: "uhorka", name: "Uhorka", category: "vegetable", base: "g", kcal: 15, protein: 0.7, carbs: 3.6, fat: 0.1, aliases: ["uhorky"] },
+  { slug: "uhorka-salatova", name: "Šalátová uhorka", category: "vegetable", base: "g", kcal: 14, protein: 0.6, carbs: 3.1, fat: 0.1, aliases: ["salatova uhorka", "salatovka"] },
+  { slug: "uhorka-nakladana", name: "Nakladané uhorky (z pohára)", category: "vegetable", base: "g", kcal: 22, protein: 0.6, carbs: 4.3, fat: 0.2, sugar: 3, aliases: ["uhorky z pohara", "sterilizovane uhorky", "kyslé uhorky"] },
   { slug: "paprika", name: "Paprika", category: "vegetable", base: "g", kcal: 31, protein: 1, carbs: 6, fat: 0.3, units: [{ label: "ks", grams: 120 }] },
   { slug: "cibula", name: "Cibuľa", category: "vegetable", base: "g", kcal: 40, protein: 1.1, carbs: 9, fat: 0.1, aliases: ["cibula"] },
   { slug: "cesnak", name: "Cesnak", category: "vegetable", base: "g", kcal: 149, protein: 6.4, carbs: 33, fat: 0.5, units: [{ label: "strúčik", grams: 4 }] },
@@ -196,6 +198,10 @@ export function searchCatalog(query: string, limit = 12): CatalogFood[] {
     else if (aliases.some((a) => a.startsWith(q))) score = 65;
     else if (name.includes(q)) score = 50;
     else if (aliases.some((a) => a.includes(q))) score = 40;
+    // Opačný smer – viacslovný dotaz obsahuje presný názov/alias ako celok (napr. "šalátová uhorka" → "uhorka"):
+    // nízka priorita, nech sa aspoň niečo nájde, keď pre variant nemáme vlastný záznam.
+    else if (name.length >= 4 && q.includes(name)) score = 30;
+    else if (aliases.some((a) => a.length >= 4 && q.includes(a))) score = 20;
 
     if (score >= 0) scored.push({ f, score });
   }

@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getWeekLoad } from "@/lib/weekly-load";
+import { regenerateProgramsAfterMatchChange } from "@/lib/training";
+
+export const maxDuration = 300;
 
 const TYPES = [
   "FOOTBALL_TRAINING",
@@ -54,6 +57,7 @@ export async function POST(request: Request) {
       rpe: num(b?.rpe, 1, 10),
     },
   });
+  if (type === "MATCH") await regenerateProgramsAfterMatchChange(userId);
 
   return NextResponse.json({ week: await getWeekLoad(userId, date) });
 }
@@ -84,6 +88,7 @@ export async function PATCH(request: Request) {
       rpe: b?.rpe === undefined ? undefined : num(b.rpe, 1, 10),
     },
   });
+  if (existing.type === "MATCH" || b?.type === "MATCH") await regenerateProgramsAfterMatchChange(userId);
 
   const date = typeof b?.date === "string" ? b.date : todayStr();
   return NextResponse.json({ week: await getWeekLoad(userId, date) });
@@ -98,6 +103,8 @@ export async function DELETE(request: Request) {
   const date = url.searchParams.get("date") ?? todayStr();
   if (!eventId) return NextResponse.json({ error: "Chýba eventId." }, { status: 400 });
 
+  const existing = await prisma.scheduleEvent.findFirst({ where: { id: eventId, userId } });
   await prisma.scheduleEvent.deleteMany({ where: { id: eventId, userId } });
+  if (existing?.type === "MATCH") await regenerateProgramsAfterMatchChange(userId);
   return NextResponse.json({ week: await getWeekLoad(userId, date) });
 }

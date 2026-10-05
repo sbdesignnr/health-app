@@ -387,8 +387,13 @@ function ActivitySheet({
           disabled={busy}
           className="w-full rounded-card bg-accent py-3.5 font-semibold text-accent-fg transition active:scale-[0.99] disabled:opacity-60"
         >
-          {busy ? "Ukladám…" : "Uložiť"}
+          {busy ? (type === "MATCH" ? "Prepočítavam tréningový plán…" : "Ukladám…") : "Uložiť"}
         </button>
+        {type === "MATCH" && (
+          <p className="text-center text-[11px] text-muted">
+            Zápas ovplyvňuje tréningový plán – uloženie môže trvať pár sekúnd dlhšie.
+          </p>
+        )}
 
         {activity && (
           <button

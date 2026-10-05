@@ -8,11 +8,13 @@ const MODEL = "claude-sonnet-4-6";
 
 export type AiExercise = {
   name: string;
+  warmupSets: number;
   sets: number;
   reps: string;
   intensity: string;
   restSec: number;
   notes: string;
+  rationale: string;
 };
 export type AiDay = {
   title: string;
@@ -45,13 +47,21 @@ const REVIEW_PROP = {
 
 const EX_PROPS = {
   name: { type: "string", description: "názov cviku po slovensky" },
-  sets: { type: "integer", description: "počet sérií" },
-  reps: { type: "string", description: "opakovania, napr. '8–10', '5' alebo 'AMRAP'" },
+  warmupSets: {
+    type: "integer",
+    description: "počet ROZCVIČOVACÍCH sérií (ľahšia váha, postupné nabaľovanie) – typicky 1–2, pri ľahkých/izolovaných cvikoch môže byť 0",
+  },
+  sets: { type: "integer", description: "počet PRACOVNÝCH sérií (hlavná záťaž) – rešpektuj presne požadovaný počet z kontextu" },
+  reps: { type: "string", description: "opakovania na pracovnú sériu, napr. '8–10', '5' alebo 'AMRAP'" },
   intensity: { type: "string", description: "intenzita, napr. 'RPE 8', '75 % 1RM' alebo 'stredná'" },
   restSec: { type: "integer", description: "odpočinok medzi sériami v sekundách" },
   notes: { type: "string", description: "krátka poznámka k technike alebo prevedeniu (môže byť prázdna)" },
+  rationale: {
+    type: "string",
+    description: "1 veta PREČO presne tento cvik – viaž na jeho cieľ/post/slabiny/zranenia, nie všeobecná fráza",
+  },
 };
-const EX_REQUIRED = ["name", "sets", "reps", "intensity", "restSec", "notes"];
+const EX_REQUIRED = ["name", "warmupSets", "sets", "reps", "intensity", "restSec", "notes", "rationale"];
 
 const DAY_COORD_PROPS = {
   dayOfWeek: { type: "integer", description: "0=nedeľa,1=pondelok,...,6=sobota – presný deň, kedy sa tento tréning odohrá" },
@@ -98,7 +108,8 @@ PRAVIDLÁ:
 - Ku každému gym dňu priraď KONKRÉTNY deň v týždni priamo do "title" (napr. "Pondelok – Dolná časť (sila)") AJ do štruktúrovaného poľa "dayOfWeek".
 - Neuvádzaj konkrétne kalórie ani makrá – tie rieši samostatný jedálniček.
 - Zaraď: viackĺbové cviky (drep, mŕtvy ťah, tlaky, príťahy), posteriorný reťazec (hamstringy, sedacie – dôležité pre šprint a prevenciu), unilaterálne cviky (výpady, bulharské drepy), výbušnosť/plyometria (pre futbal), core a prevenciu (členky, kolená).
-- Ku každému cviku: série, opakovania, intenzita (RPE alebo % 1RM), odpočinok a krátka poznámka.
+- SÉRIE (prísne dodrž): ku každému cviku daj presný počet PRACOVNÝCH sérií z kontextu (pole "Pracovné série na cvik" – ak nie je uvedené, daj 2). K tomu 1–2 ROZCVIČOVACIE série (ľahšia váha, narastajúca) – pri ľahkých/izolovaných cvikoch 0–1. NEDÁVAJ viac pracovných sérií než je v kontexte – menej, kvalitnejších sérií je lepšie než veľký objem.
+- Ku každému cviku: warmupSets, sets (pracovné), opakovania, intenzita (RPE alebo % 1RM), odpočinok, krátka poznámka k technike A rationale – prečo PRESNE tento cvik pomáha jeho cieľu/postu/slabinám (nie všeobecná fráza, napr. "bulharský drep – jednonohá sila a stabilita pre výbušný prvý krok na krídle, adresuje slabší odrazový krok").
 - Prispôsob náročnosť skúsenostiam (trainingExperience) a pozícii.
 
 AKTUÁLNY STAV / BOLESTI (ak je uvedený):
@@ -167,6 +178,7 @@ async function gatherAthleteContext(
   );
   lines.push(`- Cieľ: ${GOAL_SK[goal?.type ?? ""] ?? "udržanie + výkon"}`);
   lines.push(`- Skúsenosti v posilňovni: ${user?.trainingExperience || "neuvedené"}`);
+  lines.push(`- Pracovné série na cvik (záväzné, ak neuvedené daj 2): ${user?.workingSetsPerExercise ?? 2}`);
   lines.push("");
   lines.push("FUTBAL:");
   lines.push(`- Liga: ${user?.footballLeague || "neuvedené"}, Post: ${user?.footballPosition || "neuvedené"}`);

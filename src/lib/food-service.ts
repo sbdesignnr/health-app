@@ -268,6 +268,34 @@ function dedupe(list: FoodResult[]): FoodResult[] {
   return out;
 }
 
+/**
+ * Posledná záchrana, keď sa nič nenašlo (lokálne/katalóg/OFF): AI odhad podľa názvu,
+ * uložený do globálnej cache (dedup podľa názvu, keďže nemá čiarový kód). Jasne označené
+ * ako "AI odhad", nie overené dáta.
+ */
+export async function resolveByNameAiEstimate(name: string): Promise<FoodResult> {
+  const trimmed = name.trim().slice(0, 120);
+  const existing = await prisma.food.findFirst({
+    where: { userId: null, source: "AI_ESTIMATED", name: { equals: trimmed, mode: "insensitive" } },
+  });
+  if (existing) return rowToResult(existing as FoodRow);
+
+  const est = await estimateMacros({ name: trimmed });
+  const row = await prisma.food.create({
+    data: {
+      userId: null,
+      source: "AI_ESTIMATED",
+      barcode: null,
+      name: trimmed,
+      caloriesKcal: est.caloriesKcal,
+      proteinG: est.proteinG,
+      carbsG: est.carbsG,
+      fatG: est.fatG,
+    },
+  });
+  return rowToResult(row as FoodRow);
+}
+
 /** Kombinované (lokálne + OFF) – zachované pre iných volajúcich. */
 export async function searchByText(
   query: string,

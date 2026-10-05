@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/auth";
 import { deleteEvent, listEvents, parseEventInput, updateEvent } from "@/lib/schedule";
 
+export const maxDuration = 300;
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },

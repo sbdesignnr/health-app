@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/auth";
 import { createEvent, listEvents, parseEventInput } from "@/lib/schedule";
 
+export const maxDuration = 300;
+
 export async function GET() {
   const userId = await getCurrentUserId();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

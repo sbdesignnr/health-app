@@ -22,24 +22,34 @@ function greeting(): string {
   return "Dobrý večer";
 }
 
-function dateLabel(): string {
+function dateLabel(dateStr: string): string {
   const s = new Intl.DateTimeFormat("sk-SK", { weekday: "long", day: "numeric", month: "long" }).format(
-    new Date(),
+    new Date(`${dateStr}T12:00:00`),
   );
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-export function GreetingHeader({ name, weather }: { name: string | null; weather: Weather | null }) {
+export function GreetingHeader({
+  name,
+  weather,
+  viewDate,
+  isToday,
+}: {
+  name: string | null;
+  weather: Weather | null;
+  viewDate: string;
+  isToday: boolean;
+}) {
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <p className="label-caps">{dateLabel()}</p>
+        <p className="label-caps">{dateLabel(viewDate)}</p>
         <h1 className="mt-1 truncate text-2xl font-bold tracking-tight text-fg">
-          {greeting()}
-          {name ? `, ${name}` : ""}
+          {isToday ? greeting() : "Spätný zápis"}
+          {isToday && name ? `, ${name}` : ""}
         </h1>
       </div>
-      {weather && (
+      {isToday && weather && (
         <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5">
           <span className="text-base leading-none">{icon(weather.weatherCode)}</span>
           <span className="text-sm font-semibold tabular-nums text-white">

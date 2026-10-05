@@ -142,6 +142,7 @@ type ProfileDraft = {
   dominantFoot: string;
   seasonStartDate: string;
   extraTrainingDaysPerWeek: string;
+  workingSetsPerExercise: string;
   trainingExperience: string;
   stepGoal: string;
   seasonGoals: string;
@@ -324,6 +325,7 @@ export function ProfileScreen() {
   const [dominantFoot, setDominantFoot] = useState("");
   const [seasonStartDate, setSeasonStartDate] = useState("");
   const [extraTrainingDaysPerWeek, setExtraTrainingDaysPerWeek] = useState("");
+  const [workingSetsPerExercise, setWorkingSetsPerExercise] = useState("");
   const [trainingExperience, setTrainingExperience] = useState("");
   const [stepGoal, setStepGoal] = useState("");
   const [seasonGoals, setSeasonGoals] = useState("");
@@ -367,6 +369,9 @@ export function ProfileScreen() {
           setExtraTrainingDaysPerWeek(
             p.extraTrainingDaysPerWeek != null ? String(p.extraTrainingDaysPerWeek) : "",
           );
+          setWorkingSetsPerExercise(
+            p.workingSetsPerExercise != null ? String(p.workingSetsPerExercise) : "",
+          );
           setTrainingExperience(p.trainingExperience ?? "");
           setStepGoal(p.stepGoal != null ? String(p.stepGoal) : "");
           setSeasonGoals(p.seasonGoals ?? "");
@@ -409,6 +414,7 @@ export function ProfileScreen() {
           setDominantFoot(draft.dominantFoot);
           setSeasonStartDate(DATE_RE.test(draft.seasonStartDate) ? draft.seasonStartDate : "");
           setExtraTrainingDaysPerWeek(draft.extraTrainingDaysPerWeek);
+          setWorkingSetsPerExercise(draft.workingSetsPerExercise);
           setTrainingExperience(draft.trainingExperience);
           setStepGoal(draft.stepGoal);
           setSeasonGoals(draft.seasonGoals);
@@ -456,6 +462,7 @@ export function ProfileScreen() {
       dominantFoot,
       seasonStartDate,
       extraTrainingDaysPerWeek,
+      workingSetsPerExercise,
       trainingExperience,
       stepGoal,
       seasonGoals,
@@ -493,6 +500,7 @@ export function ProfileScreen() {
     dominantFoot,
     seasonStartDate,
     extraTrainingDaysPerWeek,
+    workingSetsPerExercise,
     trainingExperience,
     stepGoal,
     seasonGoals,
@@ -544,6 +552,7 @@ export function ProfileScreen() {
           dominantFoot: dominantFoot || null,
           seasonStartDate: seasonStartDate || null,
           extraTrainingDaysPerWeek: extraTrainingDaysPerWeek ? Number(extraTrainingDaysPerWeek) : null,
+          workingSetsPerExercise: workingSetsPerExercise ? Number(workingSetsPerExercise) : null,
           trainingExperience: trainingExperience || null,
           stepGoal: stepGoal ? Number(stepGoal) : null,
           seasonGoals: seasonGoals.trim() || null,
@@ -966,6 +975,19 @@ export function ProfileScreen() {
         <p className="text-[11px] leading-relaxed text-muted">
           Mimo klubových tréningov a zápasu — AI si to rozdelí medzi gym a individuálny futbalový
           tréning (a zapíše priamo do Rozvrhu, aby sedeli aj kalórie).
+        </p>
+
+        <Field label="Pracovné série na cvik (bez rozcvičky)">
+          <input
+            inputMode="numeric"
+            value={workingSetsPerExercise}
+            onChange={(e) => setWorkingSetsPerExercise(e.target.value)}
+            placeholder="napr. 2 (predvolené)"
+            className={inp}
+          />
+        </Field>
+        <p className="text-[11px] leading-relaxed text-muted">
+          Koľko hlavných sérií na cvik chceš (k tomu appka pridá 1–2 rozcvičovacie). Predvolené 2.
         </p>
 
         <Field label="Skúsenosti v posilňovni">

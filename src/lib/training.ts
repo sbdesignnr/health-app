@@ -46,11 +46,13 @@ function startDateFor(offset: number): string {
 export type ExerciseDTO = {
   id: string;
   name: string;
+  warmupSets: number | null;
   sets: number;
   reps: string;
   intensity: string | null;
   restSec: number | null;
   notes: string | null;
+  rationale: string | null;
   sortOrder: number;
   lastWeightKg: number | null;
   suggestion: LoadSuggestion | null;
@@ -125,11 +127,13 @@ export async function getActiveProgram(
         return {
           id: e.id,
           name: e.name,
+          warmupSets: e.warmupSets,
           sets: e.sets,
           reps: e.reps,
           intensity: e.intensity,
           restSec: e.restSec,
           notes: e.notes,
+          rationale: e.rationale,
           sortOrder: e.sortOrder,
           lastWeightKg: exLogs[0]?.weightKg ?? null,
           suggestion: suggestNextLoad(exLogs, e.reps),
@@ -173,11 +177,13 @@ export async function generateAndSaveGymProgram(
             exercises: {
               create: d.exercises.map((e, ei) => ({
                 name: e.name,
+                warmupSets: Number.isFinite(e.warmupSets) ? e.warmupSets : null,
                 sets: e.sets,
                 reps: e.reps,
                 intensity: e.intensity || null,
                 restSec: Number.isFinite(e.restSec) ? e.restSec : null,
                 notes: e.notes || null,
+                rationale: e.rationale || null,
                 sortOrder: ei,
               })),
             },
@@ -306,4 +312,16 @@ export async function getExerciseHistory(
     note: l.note,
     loggedAt: l.loggedAt.toISOString(),
   }));
+}
+
+// Zavolané po zmene ZÁPASU v rozvrhu (pridaný/presunutý/zmazaný) – ak má hráč aktívny
+// gym a/alebo futbalový program, prepočíta ich od dneška, nech plán reálne sedí
+// na nový termín (tapering, rozloženie záťaže). Gym ide prvý, football druhý (koordinácia dní).
+export async function regenerateProgramsAfterMatchChange(userId: string): Promise<void> {
+  const [hasGym, hasFootball] = await Promise.all([
+    prisma.trainingProgram.findFirst({ where: { userId, kind: "GYM", active: true }, select: { id: true } }),
+    prisma.trainingProgram.findFirst({ where: { userId, kind: "FOOTBALL", active: true }, select: { id: true } }),
+  ]);
+  if (hasGym) await generateAndSaveGymProgram(userId, 0).catch(() => {});
+  if (hasFootball) await generateAndSaveFootballProgram(userId, 0).catch(() => {});
 }

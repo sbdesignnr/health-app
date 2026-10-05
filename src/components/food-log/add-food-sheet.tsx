@@ -49,15 +49,19 @@ function unitsFor(food: FoodResult | RecentFood): ServingUnit[] {
 
 export function AddFoodSheet({
   meal,
+  date,
   recent,
   onClose,
   onAdded,
 }: {
   meal: MealKey;
+  date: string;
   recent: RecentFood[];
   onClose: () => void;
   onAdded: () => void;
 }) {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const isPastOrFuture = date !== todayStr;
   const mealLabel = MEALS.find((m) => m.key === meal)?.label ?? "";
 
   const [tab, setTab] = useState<Tab>("search");
@@ -75,6 +79,28 @@ export function AddFoodSheet({
   const [searching, setSearching] = useState(false);
 
   const [custom, setCustom] = useState(emptyCustom);
+  const [aiEstimating, setAiEstimating] = useState(false);
+
+  async function askAi() {
+    const term = q.trim();
+    if (term.length < 2) return;
+    setAiEstimating(true);
+    setError("");
+    try {
+      const res = await fetch("/api/foods/ai-estimate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: term }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "AI odhad zlyhal.");
+      const { result } = await res.json();
+      selectFood(result);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Chyba.");
+    } finally {
+      setAiEstimating(false);
+    }
+  }
 
   // Debounced textové vyhľadávanie.
   useEffect(() => {
@@ -251,7 +277,12 @@ export function AddFoodSheet({
       const res = await fetch("/api/logs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ foodId: selected.id, mealType: meal, portionG: Math.round(grams) }),
+        body: JSON.stringify({
+          foodId: selected.id,
+          mealType: meal,
+          portionG: Math.round(grams),
+          loggedAt: isPastOrFuture ? `${date}T12:00:00Z` : undefined,
+        }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Zápis zlyhal.");
       onAdded();
@@ -264,9 +295,14 @@ export function AddFoodSheet({
 
   const f = grams / 100;
   const scale = (v: number | null) => (v == null ? "—" : Math.round(v * f));
+  const dateSuffix = isPastOrFuture ? ` (${date.split("-").reverse().slice(0, 2).join(".")}.)` : "";
 
   return (
-    <Sheet open onClose={onClose} title={selected ? "Pridať do dňa" : `Pridať – ${mealLabel}`}>
+    <Sheet
+      open
+      onClose={onClose}
+      title={selected ? `Pridať do dňa${dateSuffix}` : `Pridať – ${mealLabel}${dateSuffix}`}
+    >
       {selected ? (
         <div className="space-y-4">
           <div className="rounded-2xl border border-border bg-surface p-4">
@@ -425,9 +461,17 @@ export function AddFoodSheet({
                   </button>
                 ))}
                 {!searching && q.trim().length >= 2 && results.length === 0 && (
-                  <p className="py-4 text-center text-sm text-muted">
-                    Nič sa nenašlo. Skús iný názov alebo pridaj cez „Vlastné“.
-                  </p>
+                  <div className="space-y-2.5 py-2 text-center">
+                    <p className="text-sm text-muted">Nič sa nenašlo v databáze.</p>
+                    <button
+                      onClick={askAi}
+                      disabled={aiEstimating}
+                      className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-carbs/15 py-2.5 text-sm font-semibold text-carbs transition active:scale-[0.98] disabled:opacity-60"
+                    >
+                      {aiEstimating ? "AI odhaduje…" : `Opýtať sa AI na "${q.trim()}"`}
+                    </button>
+                    <p className="text-xs text-muted">alebo pridaj cez „Vlastné“</p>
+                  </div>
                 )}
               </div>
             </div>
