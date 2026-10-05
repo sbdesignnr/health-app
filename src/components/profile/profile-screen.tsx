@@ -141,6 +141,8 @@ type ProfileDraft = {
   matchMinutes: string;
   dominantFoot: string;
   seasonStartDate: string;
+  seasonEndDate: string;
+  nextSeasonStartDate: string;
   extraTrainingDaysPerWeek: string;
   workingSetsPerExercise: string;
   trainingExperience: string;
@@ -324,6 +326,8 @@ export function ProfileScreen() {
   const [matchMinutes, setMatchMinutes] = useState("");
   const [dominantFoot, setDominantFoot] = useState("");
   const [seasonStartDate, setSeasonStartDate] = useState("");
+  const [seasonEndDate, setSeasonEndDate] = useState("");
+  const [nextSeasonStartDate, setNextSeasonStartDate] = useState("");
   const [extraTrainingDaysPerWeek, setExtraTrainingDaysPerWeek] = useState("");
   const [workingSetsPerExercise, setWorkingSetsPerExercise] = useState("");
   const [trainingExperience, setTrainingExperience] = useState("");
@@ -366,6 +370,8 @@ export function ProfileScreen() {
           setMatchMinutes(p.matchMinutes != null ? String(p.matchMinutes) : "");
           setDominantFoot(p.dominantFoot ?? "");
           setSeasonStartDate(p.seasonStartDate ?? "");
+          setSeasonEndDate(p.seasonEndDate ?? "");
+          setNextSeasonStartDate(p.nextSeasonStartDate ?? "");
           setExtraTrainingDaysPerWeek(
             p.extraTrainingDaysPerWeek != null ? String(p.extraTrainingDaysPerWeek) : "",
           );
@@ -413,6 +419,8 @@ export function ProfileScreen() {
           setMatchMinutes(draft.matchMinutes);
           setDominantFoot(draft.dominantFoot);
           setSeasonStartDate(DATE_RE.test(draft.seasonStartDate) ? draft.seasonStartDate : "");
+          setSeasonEndDate(DATE_RE.test(draft.seasonEndDate) ? draft.seasonEndDate : "");
+          setNextSeasonStartDate(DATE_RE.test(draft.nextSeasonStartDate) ? draft.nextSeasonStartDate : "");
           setExtraTrainingDaysPerWeek(draft.extraTrainingDaysPerWeek);
           setWorkingSetsPerExercise(draft.workingSetsPerExercise);
           setTrainingExperience(draft.trainingExperience);
@@ -461,6 +469,8 @@ export function ProfileScreen() {
       matchMinutes,
       dominantFoot,
       seasonStartDate,
+      seasonEndDate,
+      nextSeasonStartDate,
       extraTrainingDaysPerWeek,
       workingSetsPerExercise,
       trainingExperience,
@@ -499,6 +509,8 @@ export function ProfileScreen() {
     matchMinutes,
     dominantFoot,
     seasonStartDate,
+    seasonEndDate,
+    nextSeasonStartDate,
     extraTrainingDaysPerWeek,
     workingSetsPerExercise,
     trainingExperience,
@@ -551,6 +563,8 @@ export function ProfileScreen() {
           matchMinutes: matchMinutes ? Number(matchMinutes) : null,
           dominantFoot: dominantFoot || null,
           seasonStartDate: seasonStartDate || null,
+          seasonEndDate: seasonEndDate || null,
+          nextSeasonStartDate: nextSeasonStartDate || null,
           extraTrainingDaysPerWeek: extraTrainingDaysPerWeek ? Number(extraTrainingDaysPerWeek) : null,
           workingSetsPerExercise: workingSetsPerExercise ? Number(workingSetsPerExercise) : null,
           trainingExperience: trainingExperience || null,
@@ -958,6 +972,31 @@ export function ProfileScreen() {
               onChange={(e) => {
                 const v = e.target.value;
                 if (v === "" || DATE_RE.test(v)) setSeasonStartDate(v);
+              }}
+              className={inp}
+            />
+          </Field>
+          <Field label="Koniec sezóny (posledný zápas)">
+            <input
+              type="date"
+              value={seasonEndDate}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "" || DATE_RE.test(v)) setSeasonEndDate(v);
+              }}
+              className={inp}
+            />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Ďalšia sezóna (liga) začína">
+            <input
+              type="date"
+              value={nextSeasonStartDate}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "" || DATE_RE.test(v)) setNextSeasonStartDate(v);
               }}
               className={inp}
             />

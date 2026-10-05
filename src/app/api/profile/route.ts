@@ -47,6 +47,10 @@ export async function GET() {
           seasonStartDate: user.seasonStartDate
             ? user.seasonStartDate.toISOString().slice(0, 10)
             : null,
+          seasonEndDate: user.seasonEndDate ? user.seasonEndDate.toISOString().slice(0, 10) : null,
+          nextSeasonStartDate: user.nextSeasonStartDate
+            ? user.nextSeasonStartDate.toISOString().slice(0, 10)
+            : null,
           extraTrainingDaysPerWeek: user.extraTrainingDaysPerWeek,
           workingSetsPerExercise: user.workingSetsPerExercise,
           trainingExperience: user.trainingExperience,
@@ -94,6 +98,8 @@ export async function PUT(request: Request) {
     matchMinutes?: number | null;
     dominantFoot?: string | null;
     seasonStartDate?: string | null;
+    seasonEndDate?: string | null;
+    nextSeasonStartDate?: string | null;
     extraTrainingDaysPerWeek?: number | null;
     workingSetsPerExercise?: number | null;
     trainingExperience?: string | null;
@@ -201,6 +207,8 @@ export async function PUT(request: Request) {
   if (b?.workingSetsPerExercise !== undefined)
     data.workingSetsPerExercise = intOrNull(b.workingSetsPerExercise, 1, 6);
   if (b?.seasonStartDate !== undefined) data.seasonStartDate = dateOrNull(b.seasonStartDate);
+  if (b?.seasonEndDate !== undefined) data.seasonEndDate = dateOrNull(b.seasonEndDate);
+  if (b?.nextSeasonStartDate !== undefined) data.nextSeasonStartDate = dateOrNull(b.nextSeasonStartDate);
   if (b?.stepGoal !== undefined) data.stepGoal = intOrNull(b.stepGoal, 0, 100000);
   if (b?.seasonGoals !== undefined) data.seasonGoals = strOrNull(b.seasonGoals, 600);
   if (b?.strengths !== undefined) data.strengths = strOrNull(b.strengths, 400);

@@ -1,4 +1,5 @@
 import { anthropic } from "./anthropic";
+import { getWeather, weatherDescription } from "./weather";
 import { prisma } from "./prisma";
 import { TRAINING_KNOWLEDGE } from "./expert-knowledge";
 import { getWeekLoad, weekSummaryForAi } from "./weekly-load";
@@ -96,8 +97,9 @@ const PROGRAM_SCHEMA = {
 
 const SYSTEM = `Si špičkový kondičný tréner (strength & conditioning) pre futbalistov. Tvoríš gym program na mieru, ktorý buduje svalovú hmotu a silu, ALE zároveň zlepšuje futbalový výkon (výbušnosť, rýchlosť, stabilita, prevencia zranení).
 
-PERIODIZÁCIA PODĽA FÁZY (kľúčové – urči fázu z dátumov):
-- Prípravné obdobie / predsezóna: väčší objem, budovanie sily a hypertrofie, viac záťaže na nohy, plus rozvoj výbušnosti.
+PERIODIZÁCIA PODĽA FÁZY (kľúčové – urči fázu z dátumov a z poľa SEZÓNNA FÁZA v kontexte):
+- Prípravné obdobie / predsezóna (aj MEDZISEZÓNNA PRESTÁVKA na jej začiatku): väčší objem, budovanie sily a hypertrofie, viac záťaže na nohy, plus rozvoj výbušnosti. Dlhšia prestávka (viac týždňov do reštartu ligy) = viac priestoru na objem/hypertrofiu.
+- Posledné 2–4 týždne PRESTÁVKY pred reštartom ligy: postupne znižuj objem a presúvaj dôraz na výbušnosť/rýchlosť/silu blízku zápasovému tempu (nie už čisté naberanie objemu).
 - Blízko dôležitého zápasu (napr. pohár): zníž objem, udrž intenzitu, odľahči nohy 2–3 dni pred zápasom (tapering).
 - Sezóna (in-season): udržiavací režim, menší objem, dôraz na silu/výbušnosť a regeneráciu, aby tréning nezhoršil zápasový výkon.
 
@@ -138,6 +140,51 @@ const EVENT_SK: Record<string, string> = {
   REST: "voľno",
   CUSTOM: "iné",
 };
+
+type SeasonBreak = {
+  inBreak: boolean;
+  label: string;
+  daysUntilNextSeason: number | null;
+  breakLengthDays: number | null;
+};
+
+// Zistí, či je hráč práve v medzisezónnej prestávke, ako dlho ešte trvá a akého je typu
+// (zimná/letná/iná) – podľa toho, aké mesiace prestávka reálne pokrýva, nie podľa pevného dátumu.
+function describeSeasonBreak(
+  todayStr: string,
+  seasonEndDate: Date | null,
+  nextSeasonStartDate: Date | null,
+): SeasonBreak {
+  const empty: SeasonBreak = { inBreak: false, label: "", daysUntilNextSeason: null, breakLengthDays: null };
+  if (!seasonEndDate) return empty;
+
+  const today = new Date(`${todayStr}T12:00:00Z`);
+  if (today <= seasonEndDate) return empty;
+  if (nextSeasonStartDate && today >= nextSeasonStartDate) return empty;
+
+  const daysUntilNextSeason = nextSeasonStartDate
+    ? Math.round((nextSeasonStartDate.getTime() - today.getTime()) / 86400000)
+    : null;
+  const breakLengthDays = nextSeasonStartDate
+    ? Math.round((nextSeasonStartDate.getTime() - seasonEndDate.getTime()) / 86400000)
+    : null;
+
+  const months = new Set<number>();
+  const stop = nextSeasonStartDate ?? new Date(seasonEndDate.getTime() + 60 * 86400000);
+  for (
+    const cursor = new Date(seasonEndDate);
+    cursor <= stop;
+    cursor.setUTCDate(cursor.getUTCDate() + 7)
+  ) {
+    months.add(cursor.getUTCMonth());
+  }
+  const isWinter = [11, 0, 1].some((m) => months.has(m)); // dec, jan, feb
+  const isSummer = [5, 6, 7].some((m) => months.has(m)); // jún, júl, aug
+  const label =
+    isWinter && !isSummer ? "zimná prestávka" : isSummer && !isWinter ? "letná prestávka" : "medzisezónna prestávka";
+
+  return { inBreak: true, label, daysUntilNextSeason, breakLengthDays };
+}
 
 function ageFrom(birth: Date | null | undefined): number | null {
   if (!birth) return null;
@@ -186,8 +233,29 @@ async function gatherAthleteContext(
     `- Odohrané roky: ${user?.yearsPlaying ?? "?"}, Dĺžka zápasu: ${user?.matchMinutes ?? "?"} min, Silná noha: ${user?.dominantFoot || "?"}`,
   );
   lines.push(
-    `- Začiatok sezóny: ${user?.seasonStartDate ? user.seasonStartDate.toISOString().slice(0, 10) : "neuvedené"}`,
+    `- Začiatok aktuálnej časti sezóny: ${user?.seasonStartDate ? user.seasonStartDate.toISOString().slice(0, 10) : "neuvedené"}`,
   );
+  lines.push(
+    `- Koniec aktuálnej časti sezóny (posledný zápas): ${user?.seasonEndDate ? user.seasonEndDate.toISOString().slice(0, 10) : "neuvedené"}`,
+  );
+  lines.push(
+    `- Ďalšia časť sezóny (liga) začína: ${user?.nextSeasonStartDate ? user.nextSeasonStartDate.toISOString().slice(0, 10) : "neuvedené"}`,
+  );
+  const breakInfo = describeSeasonBreak(
+    todayStr,
+    user?.seasonEndDate ?? null,
+    user?.nextSeasonStartDate ?? null,
+  );
+  if (breakInfo.inBreak) {
+    lines.push(
+      `- SEZÓNNA FÁZA: V PRESTÁVKE (${breakInfo.label})${
+        breakInfo.daysUntilNextSeason != null ? `, ${breakInfo.daysUntilNextSeason} dní do reštartu ligy` : ""
+      }${breakInfo.breakLengthDays != null ? `, celková dĺžka prestávky ${breakInfo.breakLengthDays} dní` : ""}. ` +
+        `Na začiatku dlhšej prestávky je priestor na väčší objem/budovanie základu, v posledných 2–4 týždňoch pred reštartom zvyšuj špecifickosť a tempo bližšie k zápasovému.`,
+    );
+  } else {
+    lines.push(`- SEZÓNNA FÁZA: v sezóne / prebieha súťaž (nie prestávka).`);
+  }
   lines.push("");
   lines.push("CIELE A FORMA (personalizuj presne podľa toho):");
   lines.push(`- Ciele do sezóny: ${user?.seasonGoals?.trim() || "neuvedené"}`);
@@ -253,9 +321,10 @@ async function gatherAthleteContext(
   }
 
   // ── Fáza 12: týždenná záťaž + ranný check-in ──
-  const [week, checkin] = await Promise.all([
+  const [week, checkin, weather] = await Promise.all([
     getWeekLoad(userId, start),
     getCheckin(userId, todayStr),
+    getWeather(),
   ]);
   lines.push("");
   lines.push(weekSummaryForAi(week));
@@ -264,6 +333,17 @@ async function gatherAthleteContext(
   lines.push(
     "Ak sú varovania alebo je check-in slabý (energia/spánok ≤ 2 alebo únava ≥ 4), ZNÍŽ objem a zaraď regeneráciu.",
   );
+
+  if (weather) {
+    const wd = weatherDescription(weather.current.weatherCode);
+    lines.push("");
+    lines.push(
+      `POČASIE DNES (Nitra, pri generovaní plánu): ${wd.label} ${wd.icon}, ${Math.round(weather.current.tempC)} °C (pocitovo ${Math.round(weather.current.feelsLikeC)} °C), min/max dnes ${Math.round(weather.daily.minTempC)}/${Math.round(weather.daily.maxTempC)} °C, zrážky ${weather.daily.precipSum} mm.`,
+    );
+    lines.push(
+      "Toto je AKTUÁLNE reálne počasie, nie len odhad podľa kalendára – použi ho na rozhodnutie o vonkajších aktivitách (viď pravidlá nižšie), nie generické 'je zima/leto'.",
+    );
+  }
 
   // Posledné zapísané váhy z gymu – AI z nich progresuje záťaž.
   const exLogs = await prisma.exerciseLog.findMany({
@@ -411,6 +491,8 @@ PRAVIDLÁ:
 - Všetko špecifické pre jeho POST (napr. obranca vs krídelník vs stredopoliar).
 - Predsezóna: budovanie kondície, objem, technika; blízko zápasu: sviežosť, menej objemu; sezóna: udržiavanie + doladenie detailov.
 - Nezaťažuj nohy ťažko tesne pred zápasom/spoločným tréningom.
+- MEDZISEZÓNNA PRESTÁVKA (pozri SEZÓNNA FÁZA v kontexte): ak je v prestávke, objem a zameranie prispôsob dĺžke do reštartu ligy – na začiatku dlhšej prestávky viac objemu/techniky/kondičného základu, v posledných 2–4 týždňoch pred reštartom zvyšuj intenzitu/rýchlosť/hernú kondíciu smerom k zápasovému tempu.
+- POČASIE (pozri POČASIE DNES v kontexte): rozhoduj o VONKAJŠÍCH drilloch (šprinty, vytrvalostný/intervalový beh) podľa REÁLNEHO počasia, NIE podľa toho, že je kalendárovo "zima". Chladno ale suché/bez ľadu/snehu → vonku v pohode (len dlhšia rozcvička). Mráz s poľadovicou, sneh, intenzívny dážď/búrka → v detaile drilu daj jasnú alternatívu (hala, bežiaci pás, kryté priestory) namiesto vonkajšieho behu. V lete pri vysokých teplotách (>28 °C)/vysokom UV odporuč tréning skorého rána/večera a viac pitia.
 
 AKTUÁLNY STAV / BOLESTI (ak je uvedený):
 - PRISPÔSOB drily – vynechaj alebo uprav to, čo dráždi bolestivé miesto (napr. pri bolesti členka menej obratov s loptou, viac ľahkého behu ak to nebolí).

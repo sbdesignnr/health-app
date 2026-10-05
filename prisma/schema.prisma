@@ -126,7 +126,9 @@ model User {
   yearsPlaying       Int? // koľko rokov hrá
   matchMinutes       Int? // dĺžka zápasu (typicky 90)
   dominantFoot       String? // "left" | "right" | "both"
-  seasonStartDate    DateTime? @db.Date // začiatok sezóny
+  seasonStartDate    DateTime? @db.Date // začiatok aktuálnej časti sezóny
+  seasonEndDate      DateTime? @db.Date // koniec aktuálnej časti sezóny (posledný zápas)
+  nextSeasonStartDate DateTime? @db.Date // kedy sa znova začína liga po prestávke
   extraTrainingDaysPerWeek Int? // koľko tréningov NAVYŠE mimo klubu chce (gym + futbal individuálne spolu)
   workingSetsPerExercise   Int? // koľko PRACOVNÝCH sérií na cvik chce v gyme (bez rozcvičky), default 2
   trainingExperience String? // "začiatočník" | "pokročilý"...
