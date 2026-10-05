@@ -164,6 +164,7 @@ model User {
   shoppingLists      ShoppingList[]
   nutritionProtocols NutritionProtocol[]
   workoutSplits      WorkoutSplit[]
+  gymSplitDays       GymSplitDay[]
 }
 
 // ── GOALS (história) ─────────────────────────────────────
@@ -648,4 +649,27 @@ model SplitExercise {
   split WorkoutSplit @relation(fields: [splitId], references: [id], onDelete: Cascade)
 
   @@index([splitId])
+}
+
+// ── POŽADOVANÝ ROZVRH GYMU (presný deň + zameranie, podľa fázy sezóny) ──
+// Používateľ si nastaví, ktorý deň chce ísť do gymu a s akým zameraním (napr. Nohy/Vrch) –
+// samostatne pre "v sezóne" (blízko zápasu, menej nôh) a "v prestávke" (viac objemu/dní).
+// AI gym program tento rozvrh berie ako PRESNÚ požiadavku, nie len návrh.
+enum GymPhase {
+  IN_SEASON
+  BREAK
+}
+
+model GymSplitDay {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  phase     GymPhase
+  dayOfWeek Int // 0–6 (JS konvencia)
+  focus     String // napr. "Nohy", "Vrch", "Push", "Pull" – voľný text
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, phase])
 }

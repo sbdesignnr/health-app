@@ -15,6 +15,7 @@ import {
   Lightbulb,
   ListChecks,
   TrendingUp,
+  CalendarCheck,
 } from "lucide-react";
 import { getCached, setCached } from "@/lib/client-cache";
 import { ExerciseLogSheet } from "./exercise-log-sheet";
@@ -221,6 +222,12 @@ function FitnessNav() {
         icon={<TrendingUp className="h-5 w-5" strokeWidth={1.75} />}
         title="Prehľad progresu"
         subtitle="Váhy a objem tréningu podľa dní, týždňov a rokov"
+      />
+      <NavCard
+        href="/fitness/rozvrh"
+        icon={<CalendarCheck className="h-5 w-5" strokeWidth={1.75} />}
+        title="Rozvrh gymu"
+        subtitle="Presné dni a zameranie (Nohy/Vrch...) – AI ich dodrží"
       />
     </div>
   );

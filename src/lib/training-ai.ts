@@ -1,5 +1,6 @@
 import { anthropic } from "./anthropic";
 import { getWeather, weatherDescription } from "./weather";
+import { getGymSplitForPhase } from "./gym-split";
 import { prisma } from "./prisma";
 import { TRAINING_KNOWLEDGE } from "./expert-knowledge";
 import { getWeekLoad, weekSummaryForAi } from "./weekly-load";
@@ -104,9 +105,9 @@ PERIODIZÁCIA PODĽA FÁZY (kľúčové – urči fázu z dátumov a z poľa SEZ
 - Sezóna (in-season): udržiavací režim, menší objem, dôraz na silu/výbušnosť a regeneráciu, aby tréning nezhoršil zápasový výkon.
 
 PRAVIDLÁ:
-- Počet tréningových dní urči podľa rozpočtu v sekcii KOORDINÁCIA TÝŽDENNÉHO PROGRAMU nižšie (nie podľa vlastného odhadu).
-- NEDÁVAJ ťažké nohy tesne pred futbalovým tréningom/zápasom – rozlož záťaž podľa rozvrhu.
-- Futbalové TÍMOVÉ tréningy a zápasy z rozvrhu sú FIXNÉ – NEMEŇ ich. Gym dni rozvrhni na OSTATNÉ dni v týždni, podľa KOORDINÁCIE aj mimo dní, ktoré už zabral futbalový individuálny modul.
+- Ak je v kontexte "POŽADOVANÝ ROZVRH GYMU" – to je PRESNÁ POŽIADAVKA používateľa, použi PRESNE tie dni a zamerania (žiadne pridávanie/uberanie dní, žiadna zmena zamerania). Inak urči počet tréningových dní podľa rozpočtu v sekcii KOORDINÁCIA TÝŽDENNÉHO PROGRAMU nižšie (nie podľa vlastného odhadu).
+- NEDÁVAJ ťažké nohy tesne pred futbalovým tréningom/zápasom – rozlož záťaž podľa rozvrhu (ak POŽADOVANÝ ROZVRH GYMU existuje, používateľ toto už sám zohľadnil – len to rešpektuj).
+- Futbalové TÍMOVÉ tréningy a zápasy z rozvrhu sú FIXNÉ – NEMEŇ ich. Gym dni rozvrhni na OSTATNÉ dni v týždni, podľa KOORDINÁCIE aj mimo dní, ktoré už zabral futbalový individuálny modul (ak nemáš POŽADOVANÝ ROZVRH GYMU).
 - Ku každému gym dňu priraď KONKRÉTNY deň v týždni priamo do "title" (napr. "Pondelok – Dolná časť (sila)") AJ do štruktúrovaného poľa "dayOfWeek".
 - Neuvádzaj konkrétne kalórie ani makrá – tie rieši samostatný jedálniček.
 - Zaraď: viackĺbové cviky (drep, mŕtvy ťah, tlaky, príťahy), posteriorný reťazec (hamstringy, sedacie – dôležité pre šprint a prevenciu), unilaterálne cviky (výpady, bulharské drepy), výbušnosť/plyometria (pre futbal), core a prevenciu (členky, kolená).
@@ -285,26 +286,43 @@ async function gatherAthleteContext(
   }
   lines.push("");
 
-  const totalExtraDays = user?.extraTrainingDaysPerWeek ?? 4;
-  const remainingBudget = Math.max(1, totalExtraDays - siblingEvents.length);
-  lines.push("KOORDINÁCIA TÝŽDENNÉHO PROGRAMU (dôležité – rešpektuj presne):");
-  lines.push(
-    `- Celkový rozpočet tréningov NAVYŠE mimo klubu/zápasu za týždeň: ${totalExtraDays}${
-      user?.extraTrainingDaysPerWeek == null ? " (neuvedené, použitý predvolený)" : ""
-    }`,
-  );
-  if (siblingEvents.length > 0) {
-    lines.push(`- Modul "${siblingLabel}" už zabral z tohto rozpočtu tieto dni:`);
-    for (const e of siblingEvents) {
-      const day = e.dayOfWeek != null ? SK_DAYS[e.dayOfWeek] : "?";
-      lines.push(`  - ${day}: ${e.title || e.gymFocus || "tréning"}`);
+  const gymPhase = breakInfo.inBreak ? "BREAK" : "IN_SEASON";
+  const gymTemplate = kind === "GYM" ? await getGymSplitForPhase(userId, gymPhase) : [];
+
+  if (kind === "GYM" && gymTemplate.length > 0) {
+    lines.push("POŽADOVANÝ ROZVRH GYMU (PRESNÁ POŽIADAVKA – nie návrh, dodrž presne):");
+    lines.push(
+      `- Toto je jeho vlastný rozvrh pre "${gymPhase === "BREAK" ? "obdobie prestávky" : "obdobie v sezóne"}" – vytvor PRESNE toľko dní, na PRESNE týchto dňoch, s PRESNE týmto zameraním. IGNORUJ rozpočet "extraTrainingDaysPerWeek" nižšie, tento rozvrh má prednosť.`,
+    );
+    for (const d of gymTemplate) {
+      lines.push(`  - ${SK_DAYS[d.dayOfWeek]}: ${d.focus}`);
     }
+    lines.push(
+      `- Zameranie interpretuj bežne (napr. "Nohy" = dolná časť tela/posteriórny reťazec, "Vrch" = tlaky/príťahy/plecia/ruky + core). Rešpektuj presne, čo napísal, aj keby použil iný výraz (Push/Pull/Upper/Lower...).`,
+    );
+    lines.push("");
   } else {
-    lines.push(`- Modul "${siblingLabel}" zatiaľ nemá vygenerovaný žiadny deň.`);
+    const totalExtraDays = user?.extraTrainingDaysPerWeek ?? 4;
+    const remainingBudget = Math.max(1, totalExtraDays - siblingEvents.length);
+    lines.push("KOORDINÁCIA TÝŽDENNÉHO PROGRAMU (dôležité – rešpektuj presne):");
+    lines.push(
+      `- Celkový rozpočet tréningov NAVYŠE mimo klubu/zápasu za týždeň: ${totalExtraDays}${
+        user?.extraTrainingDaysPerWeek == null ? " (neuvedené, použitý predvolený)" : ""
+      }`,
+    );
+    if (siblingEvents.length > 0) {
+      lines.push(`- Modul "${siblingLabel}" už zabral z tohto rozpočtu tieto dni:`);
+      for (const e of siblingEvents) {
+        const day = e.dayOfWeek != null ? SK_DAYS[e.dayOfWeek] : "?";
+        lines.push(`  - ${day}: ${e.title || e.gymFocus || "tréning"}`);
+      }
+    } else {
+      lines.push(`- Modul "${siblingLabel}" zatiaľ nemá vygenerovaný žiadny deň.`);
+    }
+    lines.push(
+      `- TENTO modul môže použiť NAJVIAC ${remainingBudget} deň/dni z rozpočtu. Pokiaľ možno, vyber INÉ dni ako "${siblingLabel}", aby sa záťaž v týždni rozložila rovnomerne a nestackovala na jeden deň.`,
+    );
   }
-  lines.push(
-    `- TENTO modul môže použiť NAJVIAC ${remainingBudget} deň/dni z rozpočtu. Pokiaľ možno, vyber INÉ dni ako "${siblingLabel}", aby sa záťaž v týždni rozložila rovnomerne a nestackovala na jeden deň.`,
-  );
   lines.push("");
 
   const upcomingMatches = events
