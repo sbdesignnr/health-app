@@ -9,7 +9,7 @@ import { Sheet } from "@/components/ui/sheet";
 type R = { id: string; name: string; address: string | null };
 
 const inp =
-  "w-full rounded-2xl border border-border bg-surface-2 px-4 py-3.5 text-fg outline-none transition placeholder:text-muted/70 focus:border-accent";
+  "w-full min-w-0 rounded-2xl border border-border bg-surface-2 px-4 py-3.5 text-fg outline-none transition placeholder:text-muted/70 focus:border-accent";
 
 const container: Variants = {
   hidden: {},

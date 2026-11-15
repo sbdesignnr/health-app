@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/auth";
-import { addExercise, deleteSplit, updateSplit } from "@/lib/splits";
+import { addExercise, deleteSplit, reorderExercises, updateSplit } from "@/lib/splits";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const userId = await getCurrentUserId();
@@ -20,6 +20,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       note: typeof b.note === "string" && b.note.trim() ? b.note.trim() : null,
     });
     if (!ok) return NextResponse.json({ error: "Tréning neexistuje." }, { status: 404 });
+    return NextResponse.json({ ok: true });
+  }
+
+  // Zmena poradia cvikov
+  if (b?.action === "reorder") {
+    const ids = Array.isArray(b?.exerciseIds)
+      ? (b.exerciseIds as unknown[]).filter((x): x is string => typeof x === "string")
+      : [];
+    if (ids.length === 0) return NextResponse.json({ error: "Chýba poradie cvikov." }, { status: 400 });
+    const done = await reorderExercises(userId, id, ids);
+    if (!done) return NextResponse.json({ error: "Tréning neexistuje." }, { status: 404 });
     return NextResponse.json({ ok: true });
   }
 

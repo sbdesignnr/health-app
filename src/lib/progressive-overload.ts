@@ -67,7 +67,8 @@ export function topSetOf(session: ExerciseSession): RecentLog {
  */
 export async function sessionsByName(userId: string): Promise<Map<string, ExerciseSession[]>> {
   const logs = await prisma.exerciseLog.findMany({
-    where: { userId },
+    // rozcvičovacie série do progresie nepatria – sú zámerne ľahké
+    where: { userId, isWarmup: false },
     orderBy: { loggedAt: "desc" },
     take: 1500,
     select: { exerciseName: true, setNumber: true, weightKg: true, reps: true, loggedAt: true },

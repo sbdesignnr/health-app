@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Plus, Star } from "lucide-react";
+import { Plus, Star, Trash2, UtensilsCrossed } from "lucide-react";
 import { Sheet } from "@/components/ui/sheet";
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import { FoodIcon } from "./food-icon";
 import {
   MEALS,
   type FavoriteFood,
+  type FoodCombo,
   type FoodResult,
   type FoodSource,
   type MealKey,
@@ -25,7 +26,7 @@ const TAB_LABEL: Record<Tab, string> = {
 };
 
 const inp =
-  "w-full rounded-2xl border border-border bg-surface px-4 py-3 text-fg outline-none transition focus:border-accent";
+  "w-full min-w-0 rounded-2xl border border-border bg-surface px-4 py-3 text-fg outline-none transition focus:border-accent";
 
 const emptyCustom = {
   name: "",
@@ -99,6 +100,7 @@ export function AddFoodSheet({
 
   // ── obľúbené potraviny (rýchly zápis bez vyhľadávania) ──
   const [favorites, setFavorites] = useState<FavoriteFood[]>([]);
+  const [combos, setCombos] = useState<FoodCombo[]>([]);
   const [favBusy, setFavBusy] = useState("");
   const tabTouched = useRef(false);
 
@@ -108,13 +110,17 @@ export function AddFoodSheet({
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/foods/favorites");
-        if (!res.ok) return;
-        const list: FavoriteFood[] = (await res.json()).favorites ?? [];
+        const [fRes, cRes] = await Promise.all([
+          fetch("/api/foods/favorites"),
+          fetch("/api/foods/combos"),
+        ]);
+        const list: FavoriteFood[] = fRes.ok ? ((await fRes.json()).favorites ?? []) : [];
+        const comboList: FoodCombo[] = cRes.ok ? ((await cRes.json()).combos ?? []) : [];
         if (cancelled) return;
         setFavorites(list);
+        setCombos(comboList);
         // ak už nejaké má, otvor rovno Obľúbené – práve preto, aby nemusel stále hľadať
-        if (!tabTouched.current && list.length > 0) setTab("fav");
+        if (!tabTouched.current && list.length + comboList.length > 0) setTab("fav");
       } catch {
         /* obľúbené sú len skratka, bez nich appka funguje ďalej */
       }
@@ -152,6 +158,40 @@ export function AddFoodSheet({
       setFavorites((prev) => [...prev.filter((f) => f.food.id !== foodId), favorite]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Chyba.");
+    } finally {
+      setFavBusy("");
+    }
+  }
+
+  // Zápis celého obľúbeného jedla (všetky potraviny naraz, s uloženými gramážami).
+  async function quickAddCombo(combo: FoodCombo) {
+    setFavBusy(combo.id);
+    setError("");
+    try {
+      const res = await fetch("/api/foods/combos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "log",
+          id: combo.id,
+          mealType: meal,
+          loggedAt: isPastOrFuture ? `${date}T12:00:00Z` : undefined,
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Zápis zlyhal.");
+      onAdded();
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Chyba.");
+      setFavBusy("");
+    }
+  }
+
+  async function removeCombo(id: string) {
+    setFavBusy(id);
+    try {
+      const res = await fetch(`/api/foods/combos?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (res.ok) setCombos((prev) => prev.filter((c) => c.id !== id));
     } finally {
       setFavBusy("");
     }
@@ -502,7 +542,7 @@ export function AddFoodSheet({
               setSelected(null);
               setError("");
             }}
-            className="w-full rounded-2xl border border-border bg-surface-2 py-2.5 text-sm font-medium transition active:scale-[0.99]"
+            className="w-full min-w-0 rounded-2xl border border-border bg-surface-2 py-2.5 text-sm font-medium transition active:scale-[0.99]"
           >
             ← Späť na výber
           </button>
@@ -527,7 +567,48 @@ export function AddFoodSheet({
 
           {tab === "fav" && (
             <div className="space-y-2">
-              {favorites.length === 0 ? (
+              {/* celé uložené jedlá (kombinácie potravín) */}
+              {combos.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted">Celé jedlá — zapíšu sa všetky potraviny naraz</p>
+                  {combos.map((c) => (
+                    <div
+                      key={c.id}
+                      className="flex items-center gap-2 rounded-xl border border-accent/20 bg-accent/[0.04] px-3 py-2.5"
+                    >
+                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
+                        <UtensilsCrossed className="h-4 w-4" strokeWidth={1.75} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{c.name}</p>
+                        <p className="truncate text-xs text-muted tabular-nums">
+                          {c.items.length} potravín · {c.totals.caloriesKcal} kcal · {c.totals.proteinG} g
+                          biel.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => removeCombo(c.id)}
+                        disabled={favBusy === c.id}
+                        aria-label={`Zmazať ${c.name}`}
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted transition active:scale-90 disabled:opacity-60"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
+                      </button>
+                      <button
+                        onClick={() => quickAddCombo(c)}
+                        disabled={favBusy === c.id}
+                        aria-label={`Zapísať ${c.name}`}
+                        className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-accent text-accent-fg transition active:scale-90 disabled:opacity-60"
+                      >
+                        <Plus className="h-4.5 w-4.5" strokeWidth={2.6} />
+                      </button>
+                    </div>
+                  ))}
+                  {favorites.length > 0 && <p className="pt-1.5 text-xs text-muted">Jednotlivé potraviny</p>}
+                </div>
+              )}
+
+              {favorites.length === 0 && combos.length === 0 ? (
                 <div className="space-y-2.5 py-6 text-center">
                   <Star className="mx-auto h-8 w-8 text-muted/50" strokeWidth={1.5} />
                   <p className="text-sm font-medium">Zatiaľ žiadne obľúbené</p>
@@ -545,10 +626,12 @@ export function AddFoodSheet({
                 </div>
               ) : (
                 <>
-                  <p className="text-xs text-muted">
-                    Ťukni na položku pre úpravu porcie, alebo rovno na <span className="text-accent">+</span>{" "}
-                    pre okamžitý zápis.
-                  </p>
+                  {combos.length === 0 && (
+                    <p className="text-xs text-muted">
+                      Ťukni na položku pre úpravu porcie, alebo rovno na{" "}
+                      <span className="text-accent">+</span> pre okamžitý zápis.
+                    </p>
+                  )}
                   {favorites.map((fav) => (
                     <div
                       key={fav.favoriteId}

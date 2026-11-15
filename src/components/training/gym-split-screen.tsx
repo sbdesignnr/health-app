@@ -17,7 +17,7 @@ const fade: Variants = {
 };
 
 const inp =
-  "w-full rounded-2xl border border-border bg-surface-2 px-4 py-3 text-fg outline-none transition placeholder:text-muted/70 focus:border-accent";
+  "w-full min-w-0 rounded-2xl border border-border bg-surface-2 px-4 py-3 text-fg outline-none transition placeholder:text-muted/70 focus:border-accent";
 
 export function GymSplitScreen() {
   const reduce = useReducedMotion();

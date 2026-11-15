@@ -21,7 +21,7 @@ type Item = {
 type Restaurant = { id: string; name: string; address: string | null; menuUrl: string | null; items: Item[] };
 
 const inp =
-  "w-full rounded-2xl border border-border bg-surface-2 px-4 py-3.5 text-fg outline-none transition placeholder:text-muted/70 focus:border-accent";
+  "w-full min-w-0 rounded-2xl border border-border bg-surface-2 px-4 py-3.5 text-fg outline-none transition placeholder:text-muted/70 focus:border-accent";
 
 function dayPill(active: boolean): string {
   return `rounded-full px-3.5 py-2 text-sm font-medium transition active:scale-95 ${

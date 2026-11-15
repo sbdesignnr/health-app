@@ -139,7 +139,7 @@ export function WeightScreen() {
 
       <motion.form variants={fade} onSubmit={add} className="space-y-2">
         <div className="flex gap-2">
-          <div className="flex flex-1 items-center rounded-2xl border border-border bg-surface px-4 transition focus-within:border-accent">
+          <div className="flex min-w-0 flex-1 items-center rounded-2xl border border-border bg-surface px-4 transition focus-within:border-accent">
             <input
               value={weight}
               onChange={(e) => setWeight(e.target.value)}

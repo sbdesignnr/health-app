@@ -7,6 +7,7 @@ import { Sheet } from "@/components/ui/sheet";
 export type LogEntry = {
   id: string;
   setNumber: number | null;
+  isWarmup: boolean;
   weightKg: number;
   reps: number | null;
   note: string | null;
@@ -16,6 +17,7 @@ export type LogEntry = {
 export type ExerciseSession = {
   date: string; // YYYY-MM-DD
   sets: LogEntry[];
+  workingSets: number;
   topWeightKg: number;
   topReps: number | null;
   volumeKg: number;
@@ -124,6 +126,7 @@ export function ExerciseLogSheet({
 }) {
   const [weight, setWeight] = useState("");
   const [reps, setReps] = useState("");
+  const [isWarmup, setIsWarmup] = useState(false);
   const [sessions, setSessions] = useState<ExerciseSession[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -136,14 +139,18 @@ export function ExerciseLogSheet({
   const today = todayIso();
   const todaySession = useMemo(() => sessions.find((s) => s.date === today), [sessions, today]);
   const todaySets = todaySession?.sets ?? [];
-  const nextSetNo = todaySets.length + 1;
+  const todayWorking = todaySets.filter((s) => !s.isWarmup);
+  const todayWarmups = todaySets.filter((s) => s.isWarmup);
+  // rozcvička a pracovné série majú vlastné číslovanie (R1, R2 vs. 1, 2, 3)
+  const nextSetNo = (isWarmup ? todayWarmups.length : todayWorking.length) + 1;
   const targetSets = exercise.sets ?? null;
 
   // Predvyplnenie: pokračuj v poslednej dnešnej sérii, inak návrh AI, inak posledná váha.
   const prefill = useCallback(
     (list: ExerciseSession[]) => {
       const t = list.find((s) => s.date === todayIso());
-      const lastToday = t?.sets[t.sets.length - 1];
+      const todayWork = t?.sets.filter((x) => !x.isWarmup) ?? [];
+      const lastToday = todayWork[todayWork.length - 1];
       if (lastToday) {
         setWeight(String(lastToday.weightKg));
         setReps(lastToday.reps != null ? String(lastToday.reps) : "");
@@ -154,7 +161,7 @@ export function ExerciseLogSheet({
         setReps(exercise.suggestion.reps > 0 ? String(exercise.suggestion.reps) : "");
         return;
       }
-      const prev = list[0]?.sets[0];
+      const prev = list[0]?.sets.find((x) => !x.isWarmup) ?? list[0]?.sets[0];
       if (prev) {
         setWeight(String(prev.weightKg));
         setReps(prev.reps != null ? String(prev.reps) : "");
@@ -204,6 +211,7 @@ export function ExerciseLogSheet({
           weightKg: w,
           reps: reps ? Number(reps) : null,
           setNumber: nextSetNo,
+          isWarmup,
         }),
       });
       const d = await res.json();
@@ -273,7 +281,7 @@ export function ExerciseLogSheet({
           </p>
         )}
 
-        {exercise.suggestion && todaySets.length === 0 && (
+        {exercise.suggestion && todayWorking.length === 0 && (
           <div className="rounded-2xl bg-accent/[0.07] px-4 py-3 ring-1 ring-inset ring-accent/20">
             <p className="text-sm font-semibold text-accent">
               👉 Skús {exercise.suggestion.weightKg} kg
@@ -287,7 +295,7 @@ export function ExerciseLogSheet({
         <div className="space-y-2.5 rounded-2xl bg-surface-2 p-3.5">
           <div className="flex items-center justify-between">
             <p className="label-caps">Dnešný tréning</p>
-            {todaySets.length > 0 && (
+            {todayWorking.length > 0 && (
               <span className="text-[11px] font-medium text-muted tabular-nums">
                 objem {nf(todaySession?.volumeKg ?? 0)} kg
               </span>
@@ -298,19 +306,26 @@ export function ExerciseLogSheet({
             <div className="divide-y divide-border overflow-hidden rounded-xl bg-bg">
               {todaySets.map((s, i) => (
                 <div key={s.id} className="flex items-center gap-3 px-3 py-2.5">
-                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-surface-3 text-[11px] font-bold text-muted tabular-nums">
-                    {s.setNumber ?? i + 1}
+                  <span
+                    className={`grid h-6 w-6 shrink-0 place-items-center rounded-lg text-[11px] font-bold tabular-nums ${
+                      s.isWarmup ? "bg-surface-2 text-muted/70" : "bg-surface-3 text-muted"
+                    }`}
+                  >
+                    {s.isWarmup ? "R" : (s.setNumber ?? i + 1)}
                   </span>
-                  <span className="flex-1 text-sm font-semibold text-white tabular-nums">
+                  <span
+                    className={`flex-1 text-sm font-semibold tabular-nums ${s.isWarmup ? "text-muted" : "text-white"}`}
+                  >
                     {s.weightKg} kg
                     {s.reps != null && (
                       <span className="ml-1.5 text-xs font-normal text-muted">× {s.reps} opak.</span>
                     )}
+                    {s.isWarmup && <span className="ml-1.5 text-[10px] font-normal text-muted">rozcvička</span>}
                   </span>
                   <button
                     onClick={() => removeSet(s.id)}
                     disabled={busy}
-                    aria-label={`Zmazať sériu ${s.setNumber ?? i + 1}`}
+                    aria-label={`Zmazať ${s.isWarmup ? "rozcvičku" : `sériu ${s.setNumber ?? i + 1}`}`}
                     className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-muted transition active:scale-90 active:bg-surface-2"
                   >
                     <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
@@ -322,30 +337,45 @@ export function ExerciseLogSheet({
 
           {/* zadanie novej série */}
           <div>
-            <p className="mb-1.5 text-xs font-medium text-muted">
-              Séria {nextSetNo}
-              {targetSets ? ` z ${targetSets}` : ""}
-            </p>
-            <div className="flex gap-2">
-              <div className="flex flex-[1.3] items-center rounded-2xl border border-border bg-bg px-3.5 transition focus-within:border-accent">
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <p className="text-xs font-medium text-muted">
+                {isWarmup ? `Rozcvička ${nextSetNo}` : `Séria ${nextSetNo}`}
+                {!isWarmup && targetSets ? ` z ${targetSets}` : ""}
+              </p>
+              <div className="flex gap-1 rounded-lg bg-bg p-0.5">
+                {[false, true].map((w) => (
+                  <button
+                    key={String(w)}
+                    onClick={() => setIsWarmup(w)}
+                    className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition ${
+                      isWarmup === w ? "bg-surface-3 text-white" : "text-muted"
+                    }`}
+                  >
+                    {w ? "Rozcvička" : "Pracovná"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex min-w-0 items-center rounded-2xl border border-border bg-bg px-3.5 transition focus-within:border-accent">
                 <input
                   value={weight}
                   onChange={(e) => setWeight(e.target.value)}
                   inputMode="decimal"
                   placeholder="Váha"
-                  className="min-w-0 flex-1 bg-transparent py-3.5 text-base text-fg outline-none placeholder:text-muted/70"
+                  className="w-full min-w-0 bg-transparent py-3.5 text-base text-fg outline-none placeholder:text-muted/70"
                 />
-                <span className="shrink-0 text-sm text-muted">kg</span>
+                <span className="shrink-0 pl-1 text-sm text-muted">kg</span>
               </div>
-              <div className="flex flex-1 items-center rounded-2xl border border-border bg-bg px-3.5 transition focus-within:border-accent">
+              <div className="flex min-w-0 items-center rounded-2xl border border-border bg-bg px-3.5 transition focus-within:border-accent">
                 <input
                   value={reps}
                   onChange={(e) => setReps(e.target.value)}
                   inputMode="numeric"
                   placeholder="Opak."
-                  className="min-w-0 flex-1 bg-transparent py-3.5 text-base text-fg outline-none placeholder:text-muted/70"
+                  className="w-full min-w-0 bg-transparent py-3.5 text-base text-fg outline-none placeholder:text-muted/70"
                 />
-                <span className="shrink-0 text-sm text-muted">×</span>
+                <span className="shrink-0 pl-1 text-sm text-muted">×</span>
               </div>
             </div>
           </div>
@@ -362,14 +392,24 @@ export function ExerciseLogSheet({
             ) : (
               <>
                 <Plus className="h-4 w-4" strokeWidth={2.6} />{" "}
-                {busy ? "Zapisujem…" : `Zapísať sériu ${nextSetNo}`}
+                {busy
+                  ? "Zapisujem…"
+                  : isWarmup
+                    ? `Zapísať rozcvičku ${nextSetNo}`
+                    : `Zapísať sériu ${nextSetNo}`}
               </>
             )}
           </button>
 
-          {targetSets != null && todaySets.length >= targetSets && (
+          {targetSets != null && todayWorking.length >= targetSets && (
             <p className="text-center text-[11px] font-medium text-accent">
-              ✓ Cieľ {targetSets} sérií splnený
+              ✓ Cieľ {targetSets} pracovných sérií splnený
+            </p>
+          )}
+
+          {isWarmup && (
+            <p className="text-center text-[10px] leading-relaxed text-muted">
+              Rozcvičku zapíšeme zvlášť — nerátame ju do objemu, PR ani do návrhu ďalšej váhy.
             </p>
           )}
         </div>
@@ -434,13 +474,17 @@ export function ExerciseLogSheet({
                       {s.date === today && <span className="ml-1.5 text-[11px] text-accent">dnes</span>}
                     </span>
                     <span className="shrink-0 text-[11px] text-muted tabular-nums">
-                      {s.sets.length} {s.sets.length === 1 ? "séria" : s.sets.length < 5 ? "série" : "sérií"} ·{" "}
+                      {s.workingSets}{" "}
+                      {s.workingSets === 1 ? "séria" : s.workingSets < 5 ? "série" : "sérií"} ·{" "}
                       {nf(s.volumeKg)} kg
                     </span>
                   </div>
                   <p className="mt-0.5 text-xs text-muted tabular-nums">
                     {s.sets
-                      .map((x) => `${x.weightKg}${x.reps != null ? `×${x.reps}` : ""}`)
+                      .map(
+                        (x) =>
+                          `${x.isWarmup ? "R " : ""}${x.weightKg}${x.reps != null ? `×${x.reps}` : ""}`,
+                      )
                       .join("  ·  ")}
                   </p>
                 </div>

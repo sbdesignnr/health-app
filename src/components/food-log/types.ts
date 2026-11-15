@@ -99,3 +99,21 @@ export type FavoriteFood = {
   defaultPortionG: number;
   food: FoodResult;
 };
+
+// Obľúbené JEDLO zložené z viacerých potravín (uložená kombinácia + gramáže).
+export type FoodComboItem = {
+  foodId: string;
+  name: string;
+  brand: string | null;
+  category: string | null;
+  portionG: number;
+  caloriesKcal: number;
+};
+
+export type FoodCombo = {
+  id: string;
+  name: string;
+  mealType: MealKey | null;
+  items: FoodComboItem[];
+  totals: { caloriesKcal: number; proteinG: number; carbsG: number; fatG: number };
+};

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion, type Variants } from "motion/react";
-import { Plus, ChevronDown, Pencil, Trash2, Dumbbell, X, Check } from "lucide-react";
+import { Plus, ChevronDown, ChevronUp, Pencil, Trash2, Dumbbell, X, Check } from "lucide-react";
 import { Sheet } from "@/components/ui/sheet";
 import { ExerciseLogSheet, type LoggableExercise } from "./exercise-log-sheet";
 
@@ -416,10 +416,14 @@ function CreateSplitSheet({ onClose, onCreated }: { onClose: () => void; onCreat
 function ExistingExerciseRow({
   exercise,
   index,
+  total,
+  onMove,
   onChanged,
 }: {
   exercise: SplitExercise;
   index: number;
+  total: number;
+  onMove: (dir: -1 | 1) => void;
   onChanged: () => Promise<void> | void;
 }) {
   const [draft, setDraft] = useState<DraftExercise>({
@@ -469,6 +473,24 @@ function ExistingExerciseRow({
   return (
     <div className="space-y-2 rounded-2xl border border-border bg-surface/60 p-3">
       <div className="flex items-center gap-2">
+        <div className="flex shrink-0 flex-col">
+          <button
+            onClick={() => onMove(-1)}
+            disabled={index === 0}
+            aria-label="Posunúť cvik vyššie"
+            className="grid h-5 w-6 place-items-center rounded-t-md text-muted transition active:scale-90 active:bg-surface-3 disabled:opacity-25"
+          >
+            <ChevronUp className="h-3.5 w-3.5" strokeWidth={2.5} />
+          </button>
+          <button
+            onClick={() => onMove(1)}
+            disabled={index === total - 1}
+            aria-label="Posunúť cvik nižšie"
+            className="grid h-5 w-6 place-items-center rounded-b-md text-muted transition active:scale-90 active:bg-surface-3 disabled:opacity-25"
+          >
+            <ChevronDown className="h-3.5 w-3.5" strokeWidth={2.5} />
+          </button>
+        </div>
         <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-surface-3 text-[11px] font-bold text-muted tabular-nums">
           {index + 1}
         </span>
@@ -488,7 +510,7 @@ function ExistingExerciseRow({
           <Trash2 className="h-4 w-4" strokeWidth={1.75} />
         </button>
       </div>
-      <div className="grid grid-cols-2 gap-2 pl-9">
+      <div className="grid grid-cols-2 gap-2 pl-[3.875rem]">
         <label className="block space-y-1">
           <span className="text-[11px] text-muted">Pracovné série</span>
           <input
@@ -515,7 +537,7 @@ function ExistingExerciseRow({
         <button
           onClick={save}
           disabled={busy || !dirty}
-          className="ml-9 flex items-center gap-1.5 text-[11px] font-semibold text-accent transition active:opacity-70 disabled:text-muted"
+          className="ml-[3.875rem] flex items-center gap-1.5 text-[11px] font-semibold text-accent transition active:opacity-70 disabled:text-muted"
         >
           {saved ? (
             <>
@@ -545,6 +567,26 @@ function EditSplitSheet({
   const [newEx, setNewEx] = useState<DraftExercise>({ name: "", sets: "", reps: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  // Poradie držíme lokálne, nech je presun okamžitý; na server ho pošleme na pozadí.
+  const [order, setOrder] = useState<SplitExercise[]>(split.exercises);
+  useEffect(() => {
+    setOrder(split.exercises);
+  }, [split.exercises]);
+
+  async function move(index: number, dir: -1 | 1) {
+    const target = index + dir;
+    if (target < 0 || target >= order.length) return;
+    const next = order.slice();
+    [next[index], next[target]] = [next[target], next[index]];
+    setOrder(next);
+    await fetch(`/api/splits/${split.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "reorder", exerciseIds: next.map((e) => e.id) }),
+    });
+    await onChanged();
+  }
 
   async function rename() {
     if (!name.trim() || name.trim() === split.name) return;
@@ -609,12 +651,22 @@ function EditSplitSheet({
 
         <div className="space-y-2">
           <span className="label-caps">Cviky</span>
-          {split.exercises.length === 0 && (
+          {order.length === 0 && (
             <p className="rounded-2xl bg-surface-2 px-4 py-3 text-sm text-muted">Zatiaľ žiadne cviky.</p>
           )}
+          {order.length > 1 && (
+            <p className="text-[11px] text-muted">Poradie meníš šípkami vľavo — uloží sa samo.</p>
+          )}
           <div className="space-y-2">
-            {split.exercises.map((e, i) => (
-              <ExistingExerciseRow key={e.id} exercise={e} index={i} onChanged={onChanged} />
+            {order.map((e, i) => (
+              <ExistingExerciseRow
+                key={e.id}
+                exercise={e}
+                index={i}
+                total={order.length}
+                onMove={(dir) => move(i, dir)}
+                onChanged={onChanged}
+              />
             ))}
           </div>
         </div>
@@ -623,7 +675,7 @@ function EditSplitSheet({
           <span className="label-caps">Pridať cvik</span>
           <ExerciseDraftRow
             row={newEx}
-            index={split.exercises.length}
+            index={order.length}
             onChange={setNewEx}
             onRemove={() => setNewEx({ name: "", sets: "", reps: "" })}
           />

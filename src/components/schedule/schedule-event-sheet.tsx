@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { Trash2 } from "lucide-react";
 import { Sheet } from "@/components/ui/sheet";
+import { DateField, TimeField } from "@/components/ui/date-time-field";
 import {
   DAYS,
   GYM_FOCUS_OPTS,
@@ -16,7 +17,7 @@ import {
 } from "./labels";
 
 const inp =
-  "w-full rounded-2xl border border-border bg-surface-2 px-4 py-3.5 text-fg outline-none transition placeholder:text-muted/70 focus:border-accent";
+  "w-full min-w-0 rounded-2xl border border-border bg-surface-2 px-4 py-3.5 text-fg outline-none transition placeholder:text-muted/70 focus:border-accent";
 
 function todayStr(): string {
   const d = new Date();
@@ -160,13 +161,13 @@ export function ScheduleEventSheet({
           </Section>
         ) : (
           <Section label="Dátum">
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inp} />
+            <DateField value={date} onChange={setDate} className={inp} />
           </Section>
         )}
 
         <div className="grid grid-cols-2 gap-3">
           <Section label="Čas">
-            <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className={inp} />
+            <TimeField value={startTime} onChange={setStartTime} className={inp} />
           </Section>
           <Section label="Dĺžka (min)">
             <input

@@ -174,6 +174,36 @@ export async function addExercise(
   return true;
 }
 
+/**
+ * Prepíše poradie cvikov v splite podľa doručeného zoznamu ID.
+ * Cviky, ktoré v zozname chýbajú, si poradie udržia za tými zoradenými.
+ */
+export async function reorderExercises(
+  userId: string,
+  splitId: string,
+  exerciseIds: string[],
+): Promise<boolean> {
+  if (!(await ownsSplit(userId, splitId))) return false;
+
+  const existing = await prisma.splitExercise.findMany({
+    where: { splitId },
+    select: { id: true },
+  });
+  const valid = new Set(existing.map((e) => e.id));
+  const ordered = exerciseIds.filter((id) => valid.has(id));
+  if (ordered.length === 0) return false;
+
+  const rest = existing.map((e) => e.id).filter((id) => !ordered.includes(id));
+  const final = [...ordered, ...rest];
+
+  await prisma.$transaction(
+    final.map((id, i) =>
+      prisma.splitExercise.update({ where: { id }, data: { sortOrder: i } }),
+    ),
+  );
+  return true;
+}
+
 async function exerciseOwner(userId: string, exerciseId: string) {
   return prisma.splitExercise.findFirst({
     where: { id: exerciseId, split: { userId } },

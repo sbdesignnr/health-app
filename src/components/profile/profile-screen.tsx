@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { DEFAULT_FOOD_RULES } from "@/lib/food-rules";
 import { AnimatedNumber } from "@/components/ui/animated-number";
+import { DateField, TimeField } from "@/components/ui/date-time-field";
 
 type GoalType = "LOSE_FAT" | "GAIN_MUSCLE" | "MAINTAIN_PERFORMANCE" | "CUSTOM";
 type Activity = "SEDENTARY" | "LIGHT" | "MODERATE" | "ACTIVE" | "VERY_ACTIVE";
@@ -36,7 +37,7 @@ type Breakdown = {
 };
 
 const inp =
-  "w-full rounded-2xl border border-border bg-surface-2 px-4 py-3.5 text-fg outline-none transition placeholder:text-muted/70 focus:border-accent";
+  "w-full min-w-0 rounded-2xl border border-border bg-surface-2 px-4 py-3.5 text-fg outline-none transition placeholder:text-muted/70 focus:border-accent";
 
 const container: Variants = {
   hidden: {},
@@ -748,15 +749,7 @@ export function ProfileScreen() {
             <input inputMode="numeric" value={heightCm} onChange={(e) => setHeightCm(e.target.value)} className={inp} />
           </Field>
           <Field label="Dátum narodenia">
-            <input
-              type="date"
-              value={birthDate}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === "" || DATE_RE.test(v)) setBirthDate(v);
-              }}
-              className={inp}
-            />
+            <DateField value={birthDate} onChange={setBirthDate} className={inp} placeholder="napr. 29. 9. 2003" />
           </Field>
         </div>
 
@@ -806,26 +799,10 @@ export function ProfileScreen() {
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Čas budenia">
-            <input
-              type="time"
-              value={wakeTime}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === "" || TIME_RE.test(v)) setWakeTime(v);
-              }}
-              className={inp}
-            />
+            <TimeField value={wakeTime} onChange={setWakeTime} className={inp} />
           </Field>
           <Field label="Čas spánku">
-            <input
-              type="time"
-              value={sleepTime}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === "" || TIME_RE.test(v)) setSleepTime(v);
-              }}
-              className={inp}
-            />
+            <TimeField value={sleepTime} onChange={setSleepTime} className={inp} />
           </Field>
         </div>
 
@@ -966,40 +943,16 @@ export function ProfileScreen() {
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Začiatok sezóny">
-            <input
-              type="date"
-              value={seasonStartDate}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === "" || DATE_RE.test(v)) setSeasonStartDate(v);
-              }}
-              className={inp}
-            />
+            <DateField value={seasonStartDate} onChange={setSeasonStartDate} className={inp} />
           </Field>
           <Field label="Koniec sezóny (posledný zápas)">
-            <input
-              type="date"
-              value={seasonEndDate}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === "" || DATE_RE.test(v)) setSeasonEndDate(v);
-              }}
-              className={inp}
-            />
+            <DateField value={seasonEndDate} onChange={setSeasonEndDate} className={inp} />
           </Field>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Ďalšia sezóna (liga) začína">
-            <input
-              type="date"
-              value={nextSeasonStartDate}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === "" || DATE_RE.test(v)) setNextSeasonStartDate(v);
-              }}
-              className={inp}
-            />
+            <DateField value={nextSeasonStartDate} onChange={setNextSeasonStartDate} className={inp} />
           </Field>
           <Field label="Tréningy navyše / týždeň">
             <input

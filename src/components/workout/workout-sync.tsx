@@ -12,8 +12,9 @@ type Burn = {
   occurredAt: string;
 };
 
-const inp =
-  "w-full rounded-2xl border border-border bg-surface-2 px-4 py-3 text-fg outline-none transition placeholder:text-muted/70 focus:border-accent";
+// Základ BEZ šírky – šírku určuje miesto použitia (w-24 / flex-1), nech si triedy nekonkurujú.
+const inpBase =
+  "rounded-2xl border border-border bg-surface-2 px-4 py-3 text-fg outline-none transition placeholder:text-muted/70 focus:border-accent";
 
 export function WorkoutSync() {
   const [burns, setBurns] = useState<Burn[]>([]);
@@ -156,13 +157,13 @@ export function WorkoutSync() {
           onChange={(e) => setKcal(e.target.value)}
           inputMode="numeric"
           placeholder="kcal"
-          className={`w-24 ${inp}`}
+          className={`${inpBase} w-24 shrink-0`}
         />
         <input
           value={type}
           onChange={(e) => setType(e.target.value)}
           placeholder="Typ (napr. futbal)"
-          className={`flex-1 ${inp}`}
+          className={`${inpBase} min-w-0 flex-1`}
         />
         <button
           onClick={addManual}

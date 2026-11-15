@@ -90,7 +90,7 @@ function buildBuckets(range: ProgressRange): { key: string; label: string; match
 export async function getTrainingProgress(userId: string, range: ProgressRange): Promise<ProgressData> {
   const since = new Date(Date.now() - windowStartDays(range) * 86400000);
   const logs = (await prisma.exerciseLog.findMany({
-    where: { userId, loggedAt: { gte: since } },
+    where: { userId, loggedAt: { gte: since }, isWarmup: false },
     orderBy: { loggedAt: "asc" },
     select: { exerciseName: true, weightKg: true, reps: true, loggedAt: true },
   })) as LogRow[];

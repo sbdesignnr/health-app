@@ -83,6 +83,7 @@ export type ProgramDTO = {
 export type ExerciseLogDTO = {
   id: string;
   setNumber: number | null;
+  isWarmup: boolean;
   weightKg: number;
   reps: number | null;
   note: string | null;
@@ -92,10 +93,11 @@ export type ExerciseLogDTO = {
 // Jeden tréning (deň) = skupina sérií toho istého cviku.
 export type ExerciseSessionDTO = {
   date: string; // YYYY-MM-DD (lokálne, Europe/Bratislava)
-  sets: ExerciseLogDTO[];
-  topWeightKg: number; // najťažšia séria dňa
-  topReps: number | null; // opakovania najťažšej série
-  volumeKg: number; // Σ váha × opakovania
+  sets: ExerciseLogDTO[]; // vrátane rozcvičky (tá je označená isWarmup)
+  workingSets: number; // počet PRACOVNÝCH sérií
+  topWeightKg: number; // najťažšia pracovná séria dňa
+  topReps: number | null; // opakovania najťažšej pracovnej série
+  volumeKg: number; // Σ váha × opakovania, len z pracovných sérií
   totalReps: number;
 };
 
@@ -287,14 +289,19 @@ export async function renameExercise(
 
 // Koľká pracovná séria dnešného tréningu to je (pre daný cvik).
 // Deň určujeme cez bratislavaDate() (nie cez UTC rozsah), aby to sedelo aj cez letný/zimný čas.
-export async function nextSetNumber(userId: string, exerciseName: string): Promise<number> {
+export async function nextSetNumber(
+  userId: string,
+  exerciseName: string,
+  isWarmup = false,
+): Promise<number> {
   const today = bratislavaDate();
   const recent = await prisma.exerciseLog.findMany({
-    where: { userId, exerciseName },
+    where: { userId, exerciseName, isWarmup },
     orderBy: { loggedAt: "desc" },
     take: 40,
     select: { loggedAt: true },
   });
+  // rozcvička a pracovné série sa číslujú samostatne (R1, R2 vs. 1, 2, 3)
   return recent.filter((l) => bratislavaDate(l.loggedAt) === today).length + 1;
 }
 
@@ -305,19 +312,22 @@ export async function logExercise(
     weightKg: number;
     reps?: number | null;
     setNumber?: number | null;
+    isWarmup?: boolean;
     note?: string | null;
   },
 ): Promise<ExerciseLogDTO> {
+  const isWarmup = data.isWarmup === true;
   const setNumber =
     data.setNumber != null && data.setNumber > 0
       ? Math.round(data.setNumber)
-      : await nextSetNumber(userId, data.exerciseName);
+      : await nextSetNumber(userId, data.exerciseName, isWarmup);
 
   const created = await prisma.exerciseLog.create({
     data: {
       userId,
       exerciseName: data.exerciseName,
       setNumber,
+      isWarmup,
       weightKg: data.weightKg,
       reps: data.reps ?? null,
       note: data.note ?? null,
@@ -326,6 +336,7 @@ export async function logExercise(
   return {
     id: created.id,
     setNumber: created.setNumber,
+    isWarmup: created.isWarmup,
     weightKg: created.weightKg,
     reps: created.reps,
     note: created.note,
@@ -369,6 +380,7 @@ export async function getExerciseHistory(
   return logs.map((l) => ({
     id: l.id,
     setNumber: l.setNumber,
+    isWarmup: l.isWarmup,
     weightKg: l.weightKg,
     reps: l.reps,
     note: l.note,
@@ -398,6 +410,7 @@ export async function getExerciseSessions(
     arr.push({
       id: l.id,
       setNumber: l.setNumber,
+      isWarmup: l.isWarmup,
       weightKg: l.weightKg,
       reps: l.reps,
       note: l.note,
@@ -408,27 +421,34 @@ export async function getExerciseSessions(
 
   const sessions: ExerciseSessionDTO[] = [];
   for (const [date, raw] of byDay) {
-    // v rámci dňa chronologicky (séria 1 → n)
+    // v rámci dňa chronologicky, rozcvička vždy pred pracovnými sériami
     const sets = raw
       .slice()
-      .sort((a, b) =>
-        a.setNumber != null && b.setNumber != null
+      .sort((a, b) => {
+        if (a.isWarmup !== b.isWarmup) return a.isWarmup ? -1 : 1;
+        return a.setNumber != null && b.setNumber != null
           ? a.setNumber - b.setNumber
-          : Date.parse(a.loggedAt) - Date.parse(b.loggedAt),
-      );
-    let top = sets[0];
-    for (const s of sets) {
-      if (s.weightKg > top.weightKg || (s.weightKg === top.weightKg && (s.reps ?? 0) > (top.reps ?? 0))) {
-        top = s;
+          : Date.parse(a.loggedAt) - Date.parse(b.loggedAt);
+      });
+
+    // Štatistiky (PR, objem, graf) počítame LEN z pracovných sérií – rozcvička
+    // s ľahkou váhou by inak ťahala progres dole.
+    const working = sets.filter((x) => !x.isWarmup);
+    const base = working.length > 0 ? working : sets;
+    let top = base[0];
+    for (const x of base) {
+      if (x.weightKg > top.weightKg || (x.weightKg === top.weightKg && (x.reps ?? 0) > (top.reps ?? 0))) {
+        top = x;
       }
     }
     sessions.push({
       date,
       sets,
+      workingSets: working.length,
       topWeightKg: top.weightKg,
       topReps: top.reps,
-      volumeKg: Math.round(sets.reduce((a, s) => a + s.weightKg * (s.reps ?? 0), 0)),
-      totalReps: sets.reduce((a, s) => a + (s.reps ?? 0), 0),
+      volumeKg: Math.round(working.reduce((a, x) => a + x.weightKg * (x.reps ?? 0), 0)),
+      totalReps: working.reduce((a, x) => a + (x.reps ?? 0), 0),
     });
   }
 

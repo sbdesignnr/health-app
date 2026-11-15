@@ -32,12 +32,14 @@ export async function POST(request: Request) {
   const setNumber =
     b?.setNumber != null && Number.isFinite(Number(b.setNumber)) ? Math.round(Number(b.setNumber)) : null;
   const note = typeof b?.note === "string" && b.note.trim() ? b.note.trim().slice(0, 200) : null;
+  const isWarmup = b?.isWarmup === true;
 
   const log = await logExercise(userId, {
     exerciseName: name,
     weightKg: weight,
     reps,
     setNumber,
+    isWarmup,
     note,
   });
   const sessions = await getExerciseSessions(userId, name);
