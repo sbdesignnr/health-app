@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion, type Variants } from "motion/react";
-import { Plus, ChevronDown, Pencil, Trash2, Dumbbell, X, GripVertical } from "lucide-react";
+import { Plus, ChevronDown, Pencil, Trash2, Dumbbell, X, Check } from "lucide-react";
 import { Sheet } from "@/components/ui/sheet";
 import { ExerciseLogSheet, type LoggableExercise } from "./exercise-log-sheet";
 
 type LoadSuggestion = { weightKg: number; reps: number; rationale: string };
+type LastSession = { date: string; setCount: number; volumeKg: number; summary: string };
 type SplitExercise = {
   id: string;
   name: string;
@@ -15,6 +16,7 @@ type SplitExercise = {
   note: string | null;
   sortOrder: number;
   lastWeightKg: number | null;
+  lastSession: LastSession | null;
   suggestion: LoadSuggestion | null;
 };
 type Split = { id: string; name: string; note: string | null; sortOrder: number; exercises: SplitExercise[] };
@@ -25,8 +27,19 @@ const fade: Variants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.16, 1, 0.3, 1] } },
 };
 
-const inp =
-  "w-full rounded-2xl border border-border bg-surface-2 px-4 py-3 text-fg outline-none transition placeholder:text-muted/70 focus:border-accent";
+/**
+ * Základ pre input BEZ šírkovej triedy. Šírku vždy určuje wrapper (w-full / grid),
+ * nikdy nie kombinácia `w-full` v základe + `w-16` na mieste použitia – tie si
+ * v Tailwinde konkurujú a práve preto sa pole na názov cviku zmrsklo na pár pixelov.
+ */
+const inpBase =
+  "rounded-2xl border border-border bg-surface-2 px-4 py-3 text-base text-fg outline-none transition placeholder:text-muted/70 focus:border-accent";
+const inp = `w-full min-w-0 ${inpBase}`;
+
+function fmtDate(iso: string): string {
+  const [y, m, d] = iso.slice(0, 10).split("-");
+  return `${Number(d)}.${Number(m)}.${y.slice(2)}`;
+}
 
 type LogTarget = LoggableExercise & { exerciseId: string };
 
@@ -55,17 +68,6 @@ export function SplitsScreen() {
     load();
   }, []);
 
-  function applyLogged(name: string, weightKg: number) {
-    setSplits((prev) =>
-      prev.map((s) => ({
-        ...s,
-        exercises: s.exercises.map((e) =>
-          e.name === name ? { ...e, lastWeightKg: weightKg, suggestion: null } : e,
-        ),
-      })),
-    );
-  }
-
   if (loading) {
     return (
       <div className="space-y-3">
@@ -86,7 +88,7 @@ export function SplitsScreen() {
           <p className="font-semibold text-white">Zatiaľ žiadne tréningy</p>
           <p className="mx-auto max-w-[34ch] text-sm leading-relaxed text-muted">
             Vytvor si vlastné splity (Upper 1, Lower 1, Push, Pull…) a k nim cviky. Potom si pri každom
-            zapisuješ váhy a opakovania.
+            zapisuješ váhy a opakovania — sériu po sérii.
           </p>
         </motion.div>
       )}
@@ -145,11 +147,16 @@ export function SplitsScreen() {
                       }
                       className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition active:bg-surface-2"
                     >
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-fg">{e.name}</p>
                         {(e.targetSets || e.targetReps) && (
                           <p className="mt-0.5 text-xs text-muted tabular-nums">
                             {e.targetSets ?? "?"} × {e.targetReps ?? "?"}
+                          </p>
+                        )}
+                        {e.lastSession && (
+                          <p className="mt-1 truncate text-[11px] text-muted tabular-nums">
+                            {fmtDate(e.lastSession.date)}: {e.lastSession.summary}
                           </p>
                         )}
                         {e.suggestion && (
@@ -216,8 +223,13 @@ export function SplitsScreen() {
       {logTarget && (
         <ExerciseLogSheet
           exercise={logTarget}
-          onClose={() => setLogTarget(null)}
-          onLogged={applyLogged}
+          onClose={() => {
+            setLogTarget(null);
+            load();
+          }}
+          onLogged={() => {
+            /* zoznam sa prekreslí po zatvorení panela (load v onClose) */
+          }}
           onSubstitute={async (newName) => {
             const res = await fetch(`/api/splits/exercise/${logTarget.exerciseId}`, {
               method: "PATCH",
@@ -235,6 +247,71 @@ export function SplitsScreen() {
 
 type DraftExercise = { name: string; sets: string; reps: string };
 
+/**
+ * Riadok cviku v editore. Názov má VLASTNÝ celý riadok (predtým sa tlačil
+ * do flexu vedľa sérií/opakovaní a zostalo z neho pár pixelov), série a
+ * opakovania sú pod ním v dvoch rovnakých stĺpcoch s popiskami.
+ */
+function ExerciseDraftRow({
+  row,
+  index,
+  onChange,
+  onRemove,
+  autoFocus,
+}: {
+  row: DraftExercise;
+  index: number;
+  onChange: (r: DraftExercise) => void;
+  onRemove: () => void;
+  autoFocus?: boolean;
+}) {
+  return (
+    <div className="space-y-2 rounded-2xl border border-border bg-surface/60 p-3">
+      <div className="flex items-center gap-2">
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-surface-3 text-[11px] font-bold text-muted tabular-nums">
+          {index + 1}
+        </span>
+        <input
+          value={row.name}
+          onChange={(e) => onChange({ ...row, name: e.target.value })}
+          placeholder="Názov cviku (napr. Bench press)"
+          autoFocus={autoFocus}
+          autoCapitalize="sentences"
+          className={inp}
+        />
+        <button
+          onClick={onRemove}
+          aria-label="Odstrániť cvik"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-muted transition active:scale-90 active:bg-surface-2"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="grid grid-cols-2 gap-2 pl-9">
+        <label className="block space-y-1">
+          <span className="text-[11px] text-muted">Pracovné série</span>
+          <input
+            value={row.sets}
+            onChange={(e) => onChange({ ...row, sets: e.target.value })}
+            inputMode="numeric"
+            placeholder="napr. 3"
+            className={inp}
+          />
+        </label>
+        <label className="block space-y-1">
+          <span className="text-[11px] text-muted">Opakovania</span>
+          <input
+            value={row.reps}
+            onChange={(e) => onChange({ ...row, reps: e.target.value })}
+            placeholder="napr. 8–10"
+            className={inp}
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
+
 function ExerciseDraftRows({
   rows,
   setRows,
@@ -245,35 +322,13 @@ function ExerciseDraftRows({
   return (
     <div className="space-y-2">
       {rows.map((r, i) => (
-        <div key={i} className="flex items-center gap-2">
-          <GripVertical className="h-4 w-4 shrink-0 text-muted/50" />
-          <input
-            value={r.name}
-            onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
-            placeholder="Názov cviku"
-            className={`${inp} flex-1`}
-          />
-          <input
-            value={r.sets}
-            onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, sets: e.target.value } : x)))}
-            inputMode="numeric"
-            placeholder="série"
-            className={`${inp} w-16 px-2 text-center`}
-          />
-          <input
-            value={r.reps}
-            onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, reps: e.target.value } : x)))}
-            placeholder="opak."
-            className={`${inp} w-20 px-2 text-center`}
-          />
-          <button
-            onClick={() => setRows(rows.filter((_, j) => j !== i))}
-            aria-label="Odstrániť cvik"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-muted transition active:scale-90 active:bg-surface-2"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+        <ExerciseDraftRow
+          key={i}
+          row={r}
+          index={i}
+          onChange={(next) => setRows(rows.map((x, j) => (j === i ? next : x)))}
+          onRemove={() => setRows(rows.filter((_, j) => j !== i))}
+        />
       ))}
       <button
         onClick={() => setRows([...rows, { name: "", sets: "", reps: "" }])}
@@ -357,6 +412,124 @@ function CreateSplitSheet({ onClose, onCreated }: { onClose: () => void; onCreat
   );
 }
 
+/** Už uložený cvik – editovateľný priamo na mieste (názov, série, opakovania). */
+function ExistingExerciseRow({
+  exercise,
+  index,
+  onChanged,
+}: {
+  exercise: SplitExercise;
+  index: number;
+  onChanged: () => Promise<void> | void;
+}) {
+  const [draft, setDraft] = useState<DraftExercise>({
+    name: exercise.name,
+    sets: exercise.targetSets != null ? String(exercise.targetSets) : "",
+    reps: exercise.targetReps ?? "",
+  });
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const dirty =
+    draft.name.trim() !== exercise.name ||
+    (draft.sets ? Number(draft.sets) : null) !== exercise.targetSets ||
+    (draft.reps.trim() || null) !== exercise.targetReps;
+
+  async function save() {
+    if (!draft.name.trim() || !dirty) return;
+    setBusy(true);
+    try {
+      await fetch(`/api/splits/exercise/${exercise.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: draft.name.trim(),
+          targetSets: draft.sets ? Number(draft.sets) : null,
+          targetReps: draft.reps.trim() || null,
+        }),
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1500);
+      await onChanged();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove() {
+    setBusy(true);
+    try {
+      await fetch(`/api/splits/exercise/${exercise.id}`, { method: "DELETE" });
+      await onChanged();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2 rounded-2xl border border-border bg-surface/60 p-3">
+      <div className="flex items-center gap-2">
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-surface-3 text-[11px] font-bold text-muted tabular-nums">
+          {index + 1}
+        </span>
+        <input
+          value={draft.name}
+          onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+          onBlur={save}
+          placeholder="Názov cviku"
+          className={inp}
+        />
+        <button
+          onClick={remove}
+          disabled={busy}
+          aria-label="Odstrániť cvik"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-muted transition active:scale-90 active:bg-surface-2"
+        >
+          <Trash2 className="h-4 w-4" strokeWidth={1.75} />
+        </button>
+      </div>
+      <div className="grid grid-cols-2 gap-2 pl-9">
+        <label className="block space-y-1">
+          <span className="text-[11px] text-muted">Pracovné série</span>
+          <input
+            value={draft.sets}
+            onChange={(e) => setDraft({ ...draft, sets: e.target.value })}
+            onBlur={save}
+            inputMode="numeric"
+            placeholder="napr. 3"
+            className={inp}
+          />
+        </label>
+        <label className="block space-y-1">
+          <span className="text-[11px] text-muted">Opakovania</span>
+          <input
+            value={draft.reps}
+            onChange={(e) => setDraft({ ...draft, reps: e.target.value })}
+            onBlur={save}
+            placeholder="napr. 8–10"
+            className={inp}
+          />
+        </label>
+      </div>
+      {(dirty || saved) && (
+        <button
+          onClick={save}
+          disabled={busy || !dirty}
+          className="ml-9 flex items-center gap-1.5 text-[11px] font-semibold text-accent transition active:opacity-70 disabled:text-muted"
+        >
+          {saved ? (
+            <>
+              <Check className="h-3 w-3" strokeWidth={3} /> Uložené
+            </>
+          ) : (
+            "Uložiť zmeny"
+          )}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function EditSplitSheet({
   split,
   onClose,
@@ -408,11 +581,6 @@ function EditSplitSheet({
     }
   }
 
-  async function removeExercise(id: string) {
-    await fetch(`/api/splits/exercise/${id}`, { method: "DELETE" });
-    await onChanged();
-  }
-
   async function removeSplit() {
     setBusy(true);
     try {
@@ -423,14 +591,13 @@ function EditSplitSheet({
     }
   }
 
-  // Vždy načítaj aktuálny stav cvikov zo splitu (po onChanged sa prop aktualizuje pri reloade zoznamu).
   return (
     <Sheet open onClose={onClose} title="Upraviť tréning">
       <div className="space-y-4">
         <label className="block space-y-1.5">
           <span className="label-caps">Názov splitu</span>
           <div className="flex gap-2">
-            <input value={name} onChange={(e) => setName(e.target.value)} className={`${inp} flex-1`} />
+            <input value={name} onChange={(e) => setName(e.target.value)} onBlur={rename} className={inp} />
             <button
               onClick={rename}
               className="shrink-0 rounded-2xl bg-surface-3 px-4 text-sm font-semibold text-white ring-1 ring-inset ring-border transition active:scale-95"
@@ -442,55 +609,24 @@ function EditSplitSheet({
 
         <div className="space-y-2">
           <span className="label-caps">Cviky</span>
-          <div className="divide-y divide-border overflow-hidden rounded-2xl bg-surface-2">
-            {split.exercises.length === 0 && (
-              <p className="px-4 py-3 text-sm text-muted">Zatiaľ žiadne cviky.</p>
-            )}
-            {split.exercises.map((e) => (
-              <div key={e.id} className="flex items-center justify-between gap-2 px-3.5 py-2.5">
-                <div className="min-w-0">
-                  <p className="truncate text-sm text-fg">{e.name}</p>
-                  {(e.targetSets || e.targetReps) && (
-                    <p className="text-xs text-muted tabular-nums">
-                      {e.targetSets ?? "?"} × {e.targetReps ?? "?"}
-                    </p>
-                  )}
-                </div>
-                <button
-                  onClick={() => removeExercise(e.id)}
-                  aria-label="Odstrániť cvik"
-                  className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-muted transition active:scale-90 active:bg-surface-3"
-                >
-                  <Trash2 className="h-4 w-4" strokeWidth={1.75} />
-                </button>
-              </div>
+          {split.exercises.length === 0 && (
+            <p className="rounded-2xl bg-surface-2 px-4 py-3 text-sm text-muted">Zatiaľ žiadne cviky.</p>
+          )}
+          <div className="space-y-2">
+            {split.exercises.map((e, i) => (
+              <ExistingExerciseRow key={e.id} exercise={e} index={i} onChanged={onChanged} />
             ))}
           </div>
         </div>
 
         <div className="space-y-2">
           <span className="label-caps">Pridať cvik</span>
-          <div className="flex items-center gap-2">
-            <input
-              value={newEx.name}
-              onChange={(e) => setNewEx({ ...newEx, name: e.target.value })}
-              placeholder="Názov cviku"
-              className={`${inp} flex-1`}
-            />
-            <input
-              value={newEx.sets}
-              onChange={(e) => setNewEx({ ...newEx, sets: e.target.value })}
-              inputMode="numeric"
-              placeholder="série"
-              className={`${inp} w-16 px-2 text-center`}
-            />
-            <input
-              value={newEx.reps}
-              onChange={(e) => setNewEx({ ...newEx, reps: e.target.value })}
-              placeholder="opak."
-              className={`${inp} w-20 px-2 text-center`}
-            />
-          </div>
+          <ExerciseDraftRow
+            row={newEx}
+            index={split.exercises.length}
+            onChange={setNewEx}
+            onRemove={() => setNewEx({ name: "", sets: "", reps: "" })}
+          />
           <button
             onClick={addExercise}
             disabled={busy || !newEx.name.trim()}

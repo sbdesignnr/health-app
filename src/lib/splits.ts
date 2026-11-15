@@ -1,5 +1,19 @@
 import { prisma } from "./prisma";
-import { recentLogsByName, suggestNextLoad, type LoadSuggestion, type RecentLog } from "./progressive-overload";
+import {
+  sessionsByName,
+  suggestNextLoad,
+  topSetOf,
+  type ExerciseSession,
+  type LoadSuggestion,
+} from "./progressive-overload";
+
+// Posledný odtrénovaný deň cviku – aby bolo v zozname hneď vidno, čo naposledy zdvihol.
+export type LastSessionDTO = {
+  date: string; // YYYY-MM-DD
+  setCount: number;
+  volumeKg: number;
+  summary: string; // "60×10 · 65×8 · 65×7"
+};
 
 export type SplitExerciseDTO = {
   id: string;
@@ -9,6 +23,7 @@ export type SplitExerciseDTO = {
   note: string | null;
   sortOrder: number;
   lastWeightKg: number | null;
+  lastSession: LastSessionDTO | null;
   suggestion: LoadSuggestion | null;
 };
 
@@ -35,7 +50,18 @@ type SplitRow = {
   }[];
 };
 
-function toDTO(s: SplitRow, recent: Map<string, RecentLog[]>): SplitDTO {
+function sessionToDTO(session: ExerciseSession): LastSessionDTO {
+  return {
+    date: session.date,
+    setCount: session.sets.length,
+    volumeKg: session.volumeKg,
+    summary: session.sets
+      .map((x) => `${x.weightKg}${x.reps != null ? `×${x.reps}` : ""}`)
+      .join(" · "),
+  };
+}
+
+function toDTO(s: SplitRow, recent: Map<string, ExerciseSession[]>): SplitDTO {
   return {
     id: s.id,
     name: s.name,
@@ -45,7 +71,8 @@ function toDTO(s: SplitRow, recent: Map<string, RecentLog[]>): SplitDTO {
       .slice()
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map((e) => {
-        const exLogs = recent.get(e.name) ?? [];
+        const exSessions = recent.get(e.name) ?? [];
+        const topSets = exSessions.map(topSetOf);
         return {
           id: e.id,
           name: e.name,
@@ -53,8 +80,9 @@ function toDTO(s: SplitRow, recent: Map<string, RecentLog[]>): SplitDTO {
           targetReps: e.targetReps,
           note: e.note,
           sortOrder: e.sortOrder,
-          lastWeightKg: exLogs[0]?.weightKg ?? null,
-          suggestion: suggestNextLoad(exLogs, e.targetReps),
+          lastWeightKg: topSets[0]?.weightKg ?? null,
+          lastSession: exSessions[0] ? sessionToDTO(exSessions[0]) : null,
+          suggestion: suggestNextLoad(topSets, e.targetReps),
         };
       }),
   };
@@ -67,7 +95,7 @@ export async function listSplits(userId: string): Promise<SplitDTO[]> {
       include: { exercises: true },
       orderBy: { sortOrder: "asc" },
     }),
-    recentLogsByName(userId),
+    sessionsByName(userId),
   ]);
   return (splits as SplitRow[]).map((s) => toDTO(s, recent));
 }
@@ -95,7 +123,7 @@ export async function createSplit(
     },
     include: { exercises: true },
   });
-  const recent = await recentLogsByName(userId);
+  const recent = await sessionsByName(userId);
   return toDTO(created as SplitRow, recent);
 }
 

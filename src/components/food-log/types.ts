@@ -92,3 +92,10 @@ export type FoodResult = {
   servingUnits: ServingUnit[];
   imageUrl: string | null;
 };
+
+// Obľúbená potravina (hviezdička v zápise jedla) – rýchly zápis bez vyhľadávania.
+export type FavoriteFood = {
+  favoriteId: string;
+  defaultPortionG: number;
+  food: FoodResult;
+};

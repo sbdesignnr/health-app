@@ -1,6 +1,13 @@
 import { prisma } from "./prisma";
+import { bratislavaDate } from "./workout";
 
-export type RecentLog = { weightKg: number; reps: number | null; loggedAt: Date };
+export type RecentLog = {
+  weightKg: number;
+  reps: number | null;
+  loggedAt: Date;
+  setNumber?: number | null;
+};
+export type ExerciseSession = { date: string; sets: RecentLog[]; volumeKg: number };
 export type LoadSuggestion = { weightKg: number; reps: number; rationale: string };
 
 // Parsuje cieľový rozsah opakovaní z textu (AI alebo vlastný split), napr. "8–10", "8-10", "5", "AMRAP".
@@ -25,23 +32,86 @@ function round05(kg: number): number {
   return Math.round(kg * 2) / 2;
 }
 
-// Posledné 2 zápisy pre KAŽDÝ cvik používateľa (2. slúži na detekciu "zaseknutia" pri tej istej váhe).
+/**
+ * Posledné 2 TRÉNINGY (nie zápisy) pre KAŽDÝ cvik – 2. slúži na detekciu "zaseknutia"
+ * pri tej istej váhe. Odkedy sa zapisuje séria po sérii, jeden tréning = viac riadkov
+ * v ExerciseLog, preto sa riadky najprv zoskupia podľa lokálneho dňa a z každého dňa
+ * sa berie NAJŤAŽŠIA pracovná séria (pri rovnakej váhe tá s viac opakovaniami).
+ * Bez tohto by sa dvojitá progresia pozerala na 2 série toho istého tréningu
+ * a mylne by hlásila "2× za sebou si nedosiahol cieľ" → zbytočný deload.
+ */
 export async function recentLogsByName(userId: string): Promise<Map<string, RecentLog[]>> {
+  const sessions = await sessionsByName(userId);
+  const map = new Map<string, RecentLog[]>();
+  for (const [name, list] of sessions) {
+    map.set(name, list.map(topSetOf));
+  }
+  return map;
+}
+
+// Najťažšia pracovná séria tréningu (pri rovnakej váhe tá s viac opakovaniami).
+export function topSetOf(session: ExerciseSession): RecentLog {
+  let top = session.sets[0];
+  for (const s of session.sets) {
+    if (s.weightKg > top.weightKg || (s.weightKg === top.weightKg && (s.reps ?? 0) > (top.reps ?? 0))) {
+      top = s;
+    }
+  }
+  return top;
+}
+
+/**
+ * Posledné 2 TRÉNINGY každého cviku aj so VŠETKÝMI sériami daného dňa.
+ * Jeden dotaz pre celý zoznam splitov – používa to aj dvojitá progresia,
+ * aj zobrazenie "naposledy: 60×10 · 65×8" v zozname cvikov.
+ */
+export async function sessionsByName(userId: string): Promise<Map<string, ExerciseSession[]>> {
   const logs = await prisma.exerciseLog.findMany({
     where: { userId },
     orderBy: { loggedAt: "desc" },
-    take: 600,
-    select: { exerciseName: true, weightKg: true, reps: true, loggedAt: true },
+    take: 1500,
+    select: { exerciseName: true, setNumber: true, weightKg: true, reps: true, loggedAt: true },
   });
-  const map = new Map<string, RecentLog[]>();
+
+  // cvik → deň → série dňa (poradie dní zostáva zostupné, vďaka orderBy desc)
+  const byExercise = new Map<string, Map<string, RecentLog[]>>();
   for (const l of logs) {
-    const arr = map.get(l.exerciseName) ?? [];
-    if (arr.length < 2) {
-      arr.push({ weightKg: l.weightKg, reps: l.reps, loggedAt: l.loggedAt });
-      map.set(l.exerciseName, arr);
-    }
+    const days = byExercise.get(l.exerciseName) ?? new Map<string, RecentLog[]>();
+    const day = bratislavaDate(l.loggedAt);
+    // staršie dni, ako sú 2 najnovšie, netreba – šetrí pamäť pri dlhej histórii
+    if (!days.has(day) && days.size >= 2) continue;
+    const arr = days.get(day) ?? [];
+    arr.push({
+      weightKg: l.weightKg,
+      reps: l.reps,
+      loggedAt: l.loggedAt,
+      setNumber: l.setNumber,
+    });
+    days.set(day, arr);
+    byExercise.set(l.exerciseName, days);
   }
-  return map;
+
+  const out = new Map<string, ExerciseSession[]>();
+  for (const [name, days] of byExercise) {
+    const sessions: ExerciseSession[] = [];
+    for (const [date, sets] of days) {
+      // v rámci dňa chronologicky (séria 1 → n)
+      const ordered = sets
+        .slice()
+        .sort((a, b) =>
+          a.setNumber != null && b.setNumber != null
+            ? a.setNumber - b.setNumber
+            : a.loggedAt.getTime() - b.loggedAt.getTime(),
+        );
+      sessions.push({
+        date,
+        sets: ordered,
+        volumeKg: Math.round(ordered.reduce((acc, x) => acc + x.weightKg * (x.reps ?? 0), 0)),
+      });
+    }
+    out.set(name, sessions.slice(0, 2));
+  }
+  return out;
 }
 
 /**

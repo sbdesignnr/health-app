@@ -105,23 +105,30 @@ export async function getTrainingProgress(userId: string, range: ProgressRange):
     return { label: b.label, volume, sessions };
   });
 
-  // Per-cvik progres
-  const byName = new Map<string, LogRow[]>();
+  // Per-cvik progres. Zapisuje sa séria po sérii, takže "prvá"/"posledná" váha sa
+  // musí počítať z NAJŤAŽŠEJ série daného tréningu – inak by sa porovnávala napr.
+  // rozcvičková séria jedného dňa s pracovnou sériou druhého a Δ by bola nezmysel.
+  const byName = new Map<string, Map<string, LogRow>>();
   for (const l of logs) {
-    const arr = byName.get(l.exerciseName) ?? [];
-    arr.push(l);
-    byName.set(l.exerciseName, arr);
+    const days = byName.get(l.exerciseName) ?? new Map<string, LogRow>();
+    const day = localDay(l.loggedAt);
+    const cur = days.get(day);
+    const better =
+      !cur || l.weightKg > cur.weightKg || (l.weightKg === cur.weightKg && (l.reps ?? 0) > (cur.reps ?? 0));
+    if (better) days.set(day, l);
+    byName.set(l.exerciseName, days);
   }
+
   const exercises: ExerciseProgress[] = [];
-  for (const [name, arr] of byName) {
-    const sorted = arr.slice().sort((a, b) => a.loggedAt.getTime() - b.loggedAt.getTime());
+  for (const [name, days] of byName) {
+    // dni chronologicky (logs idú asc, ale Map garantuje len poradie vloženia)
+    const sorted = [...days.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([, l]) => l);
     const firstKg = sorted[0].weightKg;
     const lastKg = sorted[sorted.length - 1].weightKg;
     const bestKg = Math.max(...sorted.map((l) => l.weightKg));
-    const sessions = new Set(sorted.map((l) => localDay(l.loggedAt))).size;
     exercises.push({
       name,
-      sessions,
+      sessions: sorted.length,
       bestKg,
       firstKg,
       lastKg,

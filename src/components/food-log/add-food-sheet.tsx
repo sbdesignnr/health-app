@@ -1,12 +1,28 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Plus, Star } from "lucide-react";
 import { Sheet } from "@/components/ui/sheet";
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import { FoodIcon } from "./food-icon";
-import { MEALS, type FoodResult, type FoodSource, type MealKey, type RecentFood, type ServingUnit } from "./types";
+import {
+  MEALS,
+  type FavoriteFood,
+  type FoodResult,
+  type FoodSource,
+  type MealKey,
+  type RecentFood,
+  type ServingUnit,
+} from "./types";
 
-type Tab = "search" | "scan" | "custom";
+type Tab = "fav" | "search" | "scan" | "custom";
+
+const TAB_LABEL: Record<Tab, string> = {
+  fav: "Obľúbené",
+  search: "Hľadať",
+  scan: "Skenovať",
+  custom: "Vlastné",
+};
 
 const inp =
   "w-full rounded-2xl border border-border bg-surface px-4 py-3 text-fg outline-none transition focus:border-accent";
@@ -80,6 +96,91 @@ export function AddFoodSheet({
 
   const [custom, setCustom] = useState(emptyCustom);
   const [aiEstimating, setAiEstimating] = useState(false);
+
+  // ── obľúbené potraviny (rýchly zápis bez vyhľadávania) ──
+  const [favorites, setFavorites] = useState<FavoriteFood[]>([]);
+  const [favBusy, setFavBusy] = useState("");
+  const tabTouched = useRef(false);
+
+  const favIds = useMemo(() => new Set(favorites.map((f) => f.food.id)), [favorites]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/foods/favorites");
+        if (!res.ok) return;
+        const list: FavoriteFood[] = (await res.json()).favorites ?? [];
+        if (cancelled) return;
+        setFavorites(list);
+        // ak už nejaké má, otvor rovno Obľúbené – práve preto, aby nemusel stále hľadať
+        if (!tabTouched.current && list.length > 0) setTab("fav");
+      } catch {
+        /* obľúbené sú len skratka, bez nich appka funguje ďalej */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function switchTab(t: Tab) {
+    tabTouched.current = true;
+    setTab(t);
+    setError("");
+  }
+
+  // Hviezdička: pridá/odoberie potravinu z obľúbených (aj s aktuálnou porciou).
+  async function toggleFavorite(foodId: string, portionG?: number) {
+    if (!foodId) return;
+    setFavBusy(foodId);
+    try {
+      if (favIds.has(foodId)) {
+        const res = await fetch(`/api/foods/favorites?foodId=${encodeURIComponent(foodId)}`, {
+          method: "DELETE",
+        });
+        if (res.ok) setFavorites((prev) => prev.filter((f) => f.food.id !== foodId));
+        return;
+      }
+      const res = await fetch("/api/foods/favorites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ foodId, defaultPortionG: portionG ?? null }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Uloženie zlyhalo.");
+      const { favorite } = await res.json();
+      setFavorites((prev) => [...prev.filter((f) => f.food.id !== foodId), favorite]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Chyba.");
+    } finally {
+      setFavBusy("");
+    }
+  }
+
+  // Zápis obľúbenej potraviny jedným ťuknutím (s uloženou porciou).
+  async function quickAddFavorite(fav: FavoriteFood) {
+    if (!fav.food.id) return;
+    setFavBusy(fav.food.id);
+    setError("");
+    try {
+      const res = await fetch("/api/logs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          foodId: fav.food.id,
+          mealType: meal,
+          portionG: Math.round(fav.defaultPortionG),
+          loggedAt: isPastOrFuture ? `${date}T12:00:00Z` : undefined,
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Zápis zlyhal.");
+      onAdded();
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Chyba.");
+      setFavBusy("");
+    }
+  }
 
   async function askAi() {
     const term = q.trim();
@@ -312,7 +413,25 @@ export function AddFoodSheet({
                 <p className="font-medium leading-tight">{selected.name}</p>
                 {selected.brand && <p className="text-xs text-muted">{selected.brand}</p>}
               </div>
-              <Badge source={selected.source} />
+              <div className="flex shrink-0 flex-col items-end gap-1.5">
+                <Badge source={selected.source} />
+                {selected.id && (
+                  <button
+                    onClick={() => toggleFavorite(selected.id!, Math.round(grams) || undefined)}
+                    disabled={favBusy === selected.id}
+                    aria-label={favIds.has(selected.id) ? "Odobrať z obľúbených" : "Pridať do obľúbených"}
+                    className="flex items-center gap-1 rounded-full bg-surface-2 px-2 py-1 text-[11px] font-medium transition active:scale-95 disabled:opacity-60"
+                  >
+                    <Star
+                      className={`h-3.5 w-3.5 ${favIds.has(selected.id) ? "fill-accent text-accent" : "text-muted"}`}
+                      strokeWidth={2}
+                    />
+                    <span className={favIds.has(selected.id) ? "text-accent" : "text-muted"}>
+                      {favIds.has(selected.id) ? "Obľúbené" : "Uložiť"}
+                    </span>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* výber jednotky */}
@@ -390,24 +509,91 @@ export function AddFoodSheet({
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-1 rounded-2xl bg-surface-2 p-1">
-            {(["search", "scan", "custom"] as Tab[]).map((t) => (
+          <div className="grid grid-cols-4 gap-1 rounded-2xl bg-surface-2 p-1">
+            {(["fav", "search", "scan", "custom"] as Tab[]).map((t) => (
               <button
                 key={t}
-                onClick={() => {
-                  setTab(t);
-                  setError("");
-                }}
-                className={`rounded-xl py-2 text-sm font-medium transition ${
+                onClick={() => switchTab(t)}
+                className={`rounded-xl py-2 text-[13px] font-medium transition ${
                   tab === t ? "bg-accent text-accent-fg" : "text-muted"
                 }`}
               >
-                {t === "search" ? "Hľadať" : t === "scan" ? "Skenovať" : "Vlastné"}
+                {TAB_LABEL[t]}
               </button>
             ))}
           </div>
 
           {error && <p className="text-sm text-protein">{error}</p>}
+
+          {tab === "fav" && (
+            <div className="space-y-2">
+              {favorites.length === 0 ? (
+                <div className="space-y-2.5 py-6 text-center">
+                  <Star className="mx-auto h-8 w-8 text-muted/50" strokeWidth={1.5} />
+                  <p className="text-sm font-medium">Zatiaľ žiadne obľúbené</p>
+                  <p className="mx-auto max-w-[34ch] text-xs leading-relaxed text-muted">
+                    Nájdi potravinu v „Hľadať“ a pri výbere porcie ťukni na hviezdičku{" "}
+                    <Star className="inline h-3 w-3 text-accent" strokeWidth={2} /> — nabudúce ju zapíšeš
+                    jedným ťuknutím bez hľadania.
+                  </p>
+                  <button
+                    onClick={() => switchTab("search")}
+                    className="mx-auto mt-1 rounded-xl bg-surface-2 px-4 py-2 text-sm font-medium transition active:scale-95"
+                  >
+                    Hľadať potravinu
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-xs text-muted">
+                    Ťukni na položku pre úpravu porcie, alebo rovno na <span className="text-accent">+</span>{" "}
+                    pre okamžitý zápis.
+                  </p>
+                  {favorites.map((fav) => (
+                    <div
+                      key={fav.favoriteId}
+                      className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2.5"
+                    >
+                      <button
+                        disabled={busy || favBusy === fav.food.id}
+                        onClick={() => {
+                          selectFood(fav.food);
+                          setUnitIdx(0);
+                          setQty(String(Math.round(fav.defaultPortionG)));
+                        }}
+                        className="flex min-w-0 flex-1 items-center gap-3 text-left transition active:opacity-70 disabled:opacity-60"
+                      >
+                        <FoodIcon category={fav.food.category} imageUrl={fav.food.imageUrl} size={40} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm">{fav.food.name}</span>
+                          <span className="block truncate text-xs text-muted tabular-nums">
+                            {Math.round(fav.defaultPortionG)} g ·{" "}
+                            {Math.round(((fav.food.caloriesKcal ?? 0) * fav.defaultPortionG) / 100)} kcal
+                          </span>
+                        </span>
+                      </button>
+                      <button
+                        onClick={() => fav.food.id && toggleFavorite(fav.food.id)}
+                        disabled={favBusy === fav.food.id}
+                        aria-label="Odobrať z obľúbených"
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg transition active:scale-90 disabled:opacity-60"
+                      >
+                        <Star className="h-4 w-4 fill-accent text-accent" strokeWidth={2} />
+                      </button>
+                      <button
+                        onClick={() => quickAddFavorite(fav)}
+                        disabled={favBusy === fav.food.id}
+                        aria-label={`Zapísať ${fav.food.name}`}
+                        className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-accent text-accent-fg transition active:scale-90 disabled:opacity-60"
+                      >
+                        <Plus className="h-4.5 w-4.5" strokeWidth={2.6} />
+                      </button>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
 
           {tab === "search" && (
             <div className="space-y-3">
@@ -423,16 +609,33 @@ export function AddFoodSheet({
                 <div className="space-y-1.5">
                   <p className="text-xs text-muted">Posledné</p>
                   {recent.map((r) => (
-                    <button
+                    <div
                       key={r.foodId}
-                      disabled={busy}
-                      onClick={() => pickResult(recentToFood(r))}
-                      className="flex w-full items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2.5 text-left transition active:bg-surface-2"
+                      className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2.5"
                     >
-                      <FoodIcon category={r.category} size={36} />
-                      <span className="min-w-0 flex-1 truncate text-sm">{r.name}</span>
-                      <span className="ml-2 shrink-0 text-xs text-muted">{r.lastPortionG} g</span>
-                    </button>
+                      <button
+                        disabled={busy}
+                        onClick={() => pickResult(recentToFood(r))}
+                        className="flex min-w-0 flex-1 items-center gap-3 text-left transition active:opacity-70"
+                      >
+                        <FoodIcon category={r.category} size={36} />
+                        <span className="min-w-0 flex-1 truncate text-sm">{r.name}</span>
+                        <span className="ml-2 shrink-0 text-xs text-muted">{r.lastPortionG} g</span>
+                      </button>
+                      <button
+                        onClick={() => toggleFavorite(r.foodId, r.lastPortionG)}
+                        disabled={favBusy === r.foodId}
+                        aria-label={
+                          favIds.has(r.foodId) ? "Odobrať z obľúbených" : "Pridať do obľúbených"
+                        }
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg transition active:scale-90 disabled:opacity-60"
+                      >
+                        <Star
+                          className={`h-4 w-4 ${favIds.has(r.foodId) ? "fill-accent text-accent" : "text-muted"}`}
+                          strokeWidth={2}
+                        />
+                      </button>
+                    </div>
                   ))}
                 </div>
               )}

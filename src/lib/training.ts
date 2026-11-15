@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import { generateGymProgram, generateFootballPlan, type AiFootballPlan } from "./training-ai";
 import { recentLogsByName, suggestNextLoad, type LoadSuggestion } from "./progressive-overload";
+import { bratislavaDate } from "./workout";
 
 // Mapuje odhadované RPE AI programu na Intensity enum rozvrhu.
 function intensityFromRpe(rpe: number): "LOW" | "MEDIUM" | "HIGH" {
@@ -81,10 +82,21 @@ export type ProgramDTO = {
 
 export type ExerciseLogDTO = {
   id: string;
+  setNumber: number | null;
   weightKg: number;
   reps: number | null;
   note: string | null;
   loggedAt: string;
+};
+
+// Jeden tréning (deň) = skupina sérií toho istého cviku.
+export type ExerciseSessionDTO = {
+  date: string; // YYYY-MM-DD (lokálne, Europe/Bratislava)
+  sets: ExerciseLogDTO[];
+  topWeightKg: number; // najťažšia séria dňa
+  topReps: number | null; // opakovania najťažšej série
+  volumeKg: number; // Σ váha × opakovania
+  totalReps: number;
 };
 
 export async function getActiveProgram(
@@ -273,14 +285,39 @@ export async function renameExercise(
   return true;
 }
 
+// Koľká pracovná séria dnešného tréningu to je (pre daný cvik).
+// Deň určujeme cez bratislavaDate() (nie cez UTC rozsah), aby to sedelo aj cez letný/zimný čas.
+export async function nextSetNumber(userId: string, exerciseName: string): Promise<number> {
+  const today = bratislavaDate();
+  const recent = await prisma.exerciseLog.findMany({
+    where: { userId, exerciseName },
+    orderBy: { loggedAt: "desc" },
+    take: 40,
+    select: { loggedAt: true },
+  });
+  return recent.filter((l) => bratislavaDate(l.loggedAt) === today).length + 1;
+}
+
 export async function logExercise(
   userId: string,
-  data: { exerciseName: string; weightKg: number; reps?: number | null; note?: string | null },
+  data: {
+    exerciseName: string;
+    weightKg: number;
+    reps?: number | null;
+    setNumber?: number | null;
+    note?: string | null;
+  },
 ): Promise<ExerciseLogDTO> {
+  const setNumber =
+    data.setNumber != null && data.setNumber > 0
+      ? Math.round(data.setNumber)
+      : await nextSetNumber(userId, data.exerciseName);
+
   const created = await prisma.exerciseLog.create({
     data: {
       userId,
       exerciseName: data.exerciseName,
+      setNumber,
       weightKg: data.weightKg,
       reps: data.reps ?? null,
       note: data.note ?? null,
@@ -288,6 +325,7 @@ export async function logExercise(
   });
   return {
     id: created.id,
+    setNumber: created.setNumber,
     weightKg: created.weightKg,
     reps: created.reps,
     note: created.note,
@@ -295,10 +333,33 @@ export async function logExercise(
   };
 }
 
+// Zmaže jednu sériu (len vlastnú).
+export async function deleteExerciseLog(userId: string, id: string): Promise<void> {
+  await prisma.exerciseLog.deleteMany({ where: { id, userId } });
+}
+
+// Upraví už zapísanú sériu (váha / opakovania).
+export async function updateExerciseLog(
+  userId: string,
+  id: string,
+  patch: { weightKg?: number; reps?: number | null },
+): Promise<boolean> {
+  const own = await prisma.exerciseLog.findFirst({ where: { id, userId }, select: { id: true } });
+  if (!own) return false;
+  await prisma.exerciseLog.update({
+    where: { id },
+    data: {
+      weightKg: patch.weightKg !== undefined ? patch.weightKg : undefined,
+      reps: patch.reps === undefined ? undefined : patch.reps,
+    },
+  });
+  return true;
+}
+
 export async function getExerciseHistory(
   userId: string,
   exerciseName: string,
-  limit = 20,
+  limit = 150,
 ): Promise<ExerciseLogDTO[]> {
   const logs = await prisma.exerciseLog.findMany({
     where: { userId, exerciseName },
@@ -307,11 +368,72 @@ export async function getExerciseHistory(
   });
   return logs.map((l) => ({
     id: l.id,
+    setNumber: l.setNumber,
     weightKg: l.weightKg,
     reps: l.reps,
     note: l.note,
     loggedAt: l.loggedAt.toISOString(),
   }));
+}
+
+/**
+ * História cviku zoskupená po TRÉNINGOCH (dňoch) – to je to, čo používateľ reálne vidí:
+ * "12.11. · 60×10, 65×8, 65×7 · objem 1 730 kg". Najnovší tréning je prvý.
+ */
+export async function getExerciseSessions(
+  userId: string,
+  exerciseName: string,
+  maxSessions = 20,
+): Promise<ExerciseSessionDTO[]> {
+  const logs = await prisma.exerciseLog.findMany({
+    where: { userId, exerciseName },
+    orderBy: { loggedAt: "desc" },
+    take: 400,
+  });
+
+  const byDay = new Map<string, ExerciseLogDTO[]>();
+  for (const l of logs) {
+    const day = bratislavaDate(l.loggedAt);
+    const arr = byDay.get(day) ?? [];
+    arr.push({
+      id: l.id,
+      setNumber: l.setNumber,
+      weightKg: l.weightKg,
+      reps: l.reps,
+      note: l.note,
+      loggedAt: l.loggedAt.toISOString(),
+    });
+    byDay.set(day, arr);
+  }
+
+  const sessions: ExerciseSessionDTO[] = [];
+  for (const [date, raw] of byDay) {
+    // v rámci dňa chronologicky (séria 1 → n)
+    const sets = raw
+      .slice()
+      .sort((a, b) =>
+        a.setNumber != null && b.setNumber != null
+          ? a.setNumber - b.setNumber
+          : Date.parse(a.loggedAt) - Date.parse(b.loggedAt),
+      );
+    let top = sets[0];
+    for (const s of sets) {
+      if (s.weightKg > top.weightKg || (s.weightKg === top.weightKg && (s.reps ?? 0) > (top.reps ?? 0))) {
+        top = s;
+      }
+    }
+    sessions.push({
+      date,
+      sets,
+      topWeightKg: top.weightKg,
+      topReps: top.reps,
+      volumeKg: Math.round(sets.reduce((a, s) => a + s.weightKg * (s.reps ?? 0), 0)),
+      totalReps: sets.reduce((a, s) => a + (s.reps ?? 0), 0),
+    });
+  }
+
+  sessions.sort((a, b) => (a.date < b.date ? 1 : -1));
+  return sessions.slice(0, maxSessions);
 }
 
 // Zavolané po zmene ZÁPASU v rozvrhu (pridaný/presunutý/zmazaný) – ak má hráč aktívny

@@ -56,7 +56,7 @@ type FoodRow = {
   catalogSlug: string | null;
 };
 
-function rowToResult(r: FoodRow): FoodResult {
+export function rowToResult(r: FoodRow): FoodResult {
   return {
     id: r.id,
     catalogSlug: r.catalogSlug,
